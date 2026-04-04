@@ -2,9 +2,9 @@
 
 import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
-import Dashboard from "@/components/Dashboard";
-import Login from "@/components/Login";
-import SetupProfile from "@/components/SetupProfile";
+import Dashboard from "@/components/layout/Dashboard";
+import Login from "@/components/layout/Login";
+import SetupProfile from "@/components/layout/SetupProfile";
 
 export default function Home() {
   const { user, usuarioData, loading, login, logout, setupProfile } = useAuth();
