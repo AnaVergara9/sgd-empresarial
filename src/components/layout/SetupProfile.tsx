@@ -2,18 +2,18 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-interface SetupProfileProps {
-  onComplete: (empresa: string, cargo: string) => void;
+interface PropiedadesUsuario {
+  alCompletar: (empresa: string, cargo: string) => void;
 }
 
-export default function SetupProfile({ onComplete }: SetupProfileProps) {
+export default function SetupProfile({ alCompletar }: PropiedadesUsuario) {
   const [empresa, setEmpresa] = useState("");
   const [cargo, setCargo] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (empresa.trim() && cargo.trim()) {
-      onComplete(empresa.trim(), cargo.trim());
+      alCompletar(empresa.trim(), cargo.trim());
     }
   };
 
