@@ -68,7 +68,7 @@ export default function ChatArea({ canalActivo, subcanalActivo, hiloActivo, dato
     formData.append("upload_preset", "chat_upload");
 
     const res = await fetch(
-      "https://api.cloudinary.com/v1_1/chat_upload/upload",
+      "https://api.cloudinary.com/v1_1/dushkkeij/upload",
       {
         method: "POST",
         body: formData,
