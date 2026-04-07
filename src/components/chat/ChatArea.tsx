@@ -45,10 +45,7 @@ export default function ChatArea({ canalActivo, subcanalActivo, hiloActivo, dato
       fecha: serverTimestamp(),
       archivos: [],
       reacciones: {},
-      respondidoA: mensajeCitado ? {
-        autorNombre: mensajeCitado.autorNombre,
-        texto: mensajeCitado.texto
-      } : null,
+      respondidoA: mensajeCitado ? {autorNombre: mensajeCitado.autorNombre, texto: mensajeCitado.texto} : null,
     });
     setTextoNuevoMensaje("");
     setMensajeCitado(null);

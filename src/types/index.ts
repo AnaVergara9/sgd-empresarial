@@ -1,4 +1,4 @@
-export type Rol = "admin" | "empleado";
+export type Rol = "Admin" | "Empleado";
 
 export interface Usuario {
   uid: string; // ID único del usuario
@@ -50,5 +50,5 @@ export interface Mensaje {
   fecha: any;
   archivos: ArchivoAdjunto[];
   reacciones: Reacciones;
-  respondidoA: string | null;
+  respondidoA?: { autorNombre: string , texto: string;} | null;
 }
