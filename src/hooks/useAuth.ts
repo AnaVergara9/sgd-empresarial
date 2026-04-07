@@ -15,40 +15,40 @@ import { Usuario } from "@/types";
  * Este "gancho" personalizado centraliza toda la lógica de autenticación de la aplicación.
  * Permite que cualquier componente sepa quién está conectado y qué datos tiene.
  */
-export function useAuth() {
+export function useAutenticacion() {
   // Guardamos el usuario de autenticación de Firebase (trae nombre, email, foto...)
-  const [user, setUser] = useState<User | null>(null);
+  const [usuarioAuth, setUsuarioAuth] = useState<User | null>(null);
   // Guardamos los datos adicionales del usuario que nosotros definimos (empresa, color de avatar...)
-  const [usuarioData, setUsuarioData] = useState<Usuario | null>(null);
+  const [datosUsuario, setDatosUsuario] = useState<Usuario | null>(null);
   // Un indicador para saber si todavía estamos procesando el inicio de sesión
-  const [loading, setLoading] = useState(true);
+  const [cargando, setCargando] = useState(true);
 
   // Este efecto se ejecuta una sola vez al cargar la página
   useEffect(() => {
     // Escuchamos los cambios en el estado de autenticación (cuando alguien entra o sale)
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user); // Guardamos la info básica del usuario (si hay)
+    const cancelarSuscripcion = onAuthStateChanged(auth, async (usuario) => {
+      setUsuarioAuth(usuario); // Guardamos la info básica del usuario (si hay)
       
-      if (user) {
+      if (usuario) {
         // Si el usuario está conectado, vamos a Firestore a buscar sus datos adicionales
-        const userDoc = await getDoc(doc(db, "usuarios", user.uid));
-        if (userDoc.exists()) {
+        const docUsuario = await getDoc(doc(db, "usuarios", usuario.uid));
+        if (docUsuario.exists()) {
           // Si sus datos ya existen en la base de datos, los cargamos
-          setUsuarioData(userDoc.data() as Usuario);
+          setDatosUsuario(docUsuario.data() as Usuario);
         } else {
           // Si no existen datos guardados, avisamos que necesita configurar su perfil
-          setUsuarioData(null); 
+          setDatosUsuario(null); 
         }
       } else {
         // Si el usuario no está conectado, borramos sus datos locales
-        setUsuarioData(null);
+        setDatosUsuario(null);
       }
       // Terminamos el proceso de carga
-      setLoading(false);
+      setCargando(false);
     });
 
     // Esta función "limpia" el escucha cuando el componente deja de existir
-    return () => unsubscribe();
+    return () => cancelarSuscripcion();
   }, []);
 
   /**
@@ -58,7 +58,7 @@ export function useAuth() {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
-      console.error("Error signing in with Google", error);
+      console.error("Error al iniciar sesión con Google", error);
     }
   };
 
@@ -69,7 +69,7 @@ export function useAuth() {
     try {
       await signOut(auth);
     } catch (error) {
-      console.error("Error signing out", error);
+      console.error("Error al cerrar sesión", error);
     }
   };
 
@@ -77,28 +77,30 @@ export function useAuth() {
    * Función para configurar el perfil de un usuario nuevo por primera vez.
    * Guarda los datos en Firestore (base de datos en la nube).
    */
-  const setupProfile = async (empresa: string) => {
-    if (!user) return;
+  const configurarPerfil = async (empresa: string, cargo: string) => {
+    if (!usuarioAuth) return;
     
     // Colores aleatorios para darle un toque visual diferente a cada usuario
     const colors = ["#5865f2", "#3ba55c", "#ed4245", "#faa61a", "#9b59b6"];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
     
-    const newUsuario: Usuario = {
-      uid: user.uid,
-      nombre: user.displayName || "Usuario",
-      email: user.email || "",
+    const nuevoUsuario: Usuario = {
+      uid: usuarioAuth.uid,
+      nombre: usuarioAuth.displayName || "Usuario",
+      cargo: cargo,
+      rol: "empleado", // Por defecto, el rol es "empleado"
+      email: usuarioAuth.email || "",
       empresa: empresa,
       avatarColor: randomColor,
       creadoEn: new Date(),
     };
 
     // Guardamos la información en la colección "usuarios" con el ID del usuario de Google
-    await setDoc(doc(db, "usuarios", user.uid), newUsuario);
+    await setDoc(doc(db, "usuarios", usuarioAuth.uid), nuevoUsuario);
     // Actualizamos el estado local para que la interfaz sepa que ya hay perfil
-    setUsuarioData(newUsuario);
+    setDatosUsuario(nuevoUsuario);
   };
 
   // Exponemos (retornamos) todos los datos y funciones para que sean usados en el resto de la app
-  return { user, usuarioData, loading, login, logout, setupProfile };
+  return { usuarioAuth, datosUsuario, cargando, login, logout, configurarPerfil };
 }

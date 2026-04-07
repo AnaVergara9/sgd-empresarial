@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Gestión Documental",
-  description: "Sistema de gestión documental profesional",
+  description: "Sistema de gestión documental empresarial",
 };
 
 export default function RootLayout({
