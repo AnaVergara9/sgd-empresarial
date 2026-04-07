@@ -268,3 +268,5 @@ export default function ChatArea({ canalActivo, subcanalActivo, hiloActivo, dato
     </div>
   );
 }
+
+//Prueba
