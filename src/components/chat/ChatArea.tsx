@@ -7,6 +7,8 @@ import { collection, onSnapshot, orderBy, addDoc, serverTimestamp, query, update
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
+const [archivoSeleccionado, setArchivoSeleccionado] = useState<File | null>(null);
+
 interface PropiedadesChatArea {
   canalActivo: Canal | null;
   subcanalActivo: Subcanal | null;
@@ -36,19 +38,46 @@ export default function ChatArea({ canalActivo, subcanalActivo, hiloActivo, dato
   }, [mensajes]);
 
   const enviarMensaje = async () => {
-    if (!textoNuevoMensaje.trim() || !canalActivo || !subcanalActivo) return;
+    if (!canalActivo || !subcanalActivo) return;
+
+    let archivoSubido = null;
+    if (archivoSeleccionado) {
+      archivoSubido = await subirArchivo(archivoSeleccionado);
+    }
+
+    // Evitar enviar vacío
+    if (!textoNuevoMensaje.trim() && !archivoSubido) return;
+
     await addDoc(collection(db, rutaMensajes), {
       texto: textoNuevoMensaje,
       autorId: datosUsuario.uid,
       autorNombre: datosUsuario.nombre,
       autorEmpresa: datosUsuario.empresa,
       fecha: serverTimestamp(),
-      archivos: [],
+      archivos: archivoSubido ? [archivoSubido] : [],
       reacciones: {},
       respondidoA: mensajeCitado ? {autorNombre: mensajeCitado.autorNombre, texto: mensajeCitado.texto} : null,
     });
     setTextoNuevoMensaje("");
+    setArchivoSeleccionado(null);
     setMensajeCitado(null);
+  };
+
+  const subirArchivo = async (archivo: File) => {
+    const formData = new FormData();
+    formData.append("file", archivo);
+    formData.append("upload_preset", "chat_upload");
+
+    const res = await fetch(
+      "https://api.cloudinary.com/v1_1/chat_upload/upload",
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    const data = await res.json();
+    return {url: data.secure_url, nombre: archivo.name, tipo: archivo.type,};
   };
 
   const reaccionar = async (idMensaje: string, emoji: string) => {
@@ -73,13 +102,13 @@ export default function ChatArea({ canalActivo, subcanalActivo, hiloActivo, dato
 
   return (
     <div className="flex-1 flex flex-col bg-[#313338] overflow-hidden">
-      {/* Encabezado del chat */}
+      /* Encabezado del chat */
       <div className="px-4 py-3 border-b border-white/10 flex-shrink-0">
         <h2 className="text-white font-semibold">💬 {hiloActivo.nombre}</h2>
         <p className="text-gray-400 text-xs">{canalActivo?.nombre} › {subcanalActivo?.nombre}</p>
       </div>
 
-      {/* Lista de mensajes */}
+      /* Lista de mensajes */
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {mensajes.length === 0 && (
           <p className="text-gray-400 text-sm text-center mt-8">No hay mensajes aún. ¡Sé el primero en escribir!</p>
@@ -112,7 +141,24 @@ export default function ChatArea({ canalActivo, subcanalActivo, hiloActivo, dato
                 </div>
                 <p className="text-gray-200 text-sm leading-relaxed">{mensaje.texto}</p>
 
-                {/* Reacciones */}
+                /* Archivos adjuntos */
+                {mensaje.archivos && mensaje.archivos.length > 0 && (
+                <div className="mt-2">
+                  {mensaje.archivos.map((archivo: any, index: number) => (
+                    <a
+                      key={index}
+                      href={archivo.url}
+                      target="_blank"
+                      className="text-blue-400 underline text-sm block"
+                      download
+                    >
+                      📎 {archivo.nombre}
+                    </a>
+                  ))}
+                </div>
+              )}
+
+                /* Reacciones */
                 {mensaje.reacciones && Object.keys(mensaje.reacciones).length > 0 && (
                   <div className="flex gap-1 mt-1 flex-wrap">
                     {Object.entries(mensaje.reacciones).map(([emoji, usuarios]) =>
@@ -135,7 +181,7 @@ export default function ChatArea({ canalActivo, subcanalActivo, hiloActivo, dato
               </div>
             </div>
 
-            {/* Acciones al hacer hover */}
+            /* Acciones al hacer hover */
             <div className="absolute right-2 top-1 hidden group-hover:flex gap-1 bg-[#2b2d31] border border-white/10 rounded-lg p-1">
               {EMOJIS.map(emoji => (
                 <button
@@ -158,7 +204,7 @@ export default function ChatArea({ canalActivo, subcanalActivo, hiloActivo, dato
         <div ref={referenciaFinal} />
       </div>
 
-      {/* Input para escribir */}
+      /* Input para escribir */
       <div className="px-4 py-3 border-t border-white/10 flex-shrink-0">
         {mensajeCitado && (
           <div className="mb-2 px-3 py-2 bg-white/5 rounded-lg flex items-center justify-between">
@@ -168,7 +214,26 @@ export default function ChatArea({ canalActivo, subcanalActivo, hiloActivo, dato
             <button onClick={() => setMensajeCitado(null)} className="text-gray-400 hover:text-white text-xs ml-2">✕</button>
           </div>
         )}
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+
+          /* BOTÓN CLIP */
+          <label className="cursor-pointer text-white text-xl">
+            📎
+            <input
+              type="file"
+              hidden
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  setArchivoSeleccionado(e.target.files[0]);
+                }
+              }}
+            />
+          </label>
+          {archivoSeleccionado && (
+            <p className="text-xs text-gray-400 mb-1">
+              Archivo: {archivoSeleccionado.name}
+            </p>)}
+
           <Input
             placeholder={`Escribe un mensaje en ${hiloActivo.nombre}...`}
             value={textoNuevoMensaje}

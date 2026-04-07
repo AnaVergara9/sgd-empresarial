@@ -32,9 +32,7 @@ export interface Hilo {
 
 export interface ArchivoAdjunto {
   nombre: string;
-  tamaño: number;
-  driveId: string;
-  driveLink: string;
+  url: string;
   tipo: string;
 }
 
