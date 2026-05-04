@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { Usuario, Canal, Subcanal, Hilo } from "@/types";
 
-import ColumnaCanales from "../sidebar/ColumnaCanales";
-import ColumnaSubcanales from "../sidebar/ColumnaSubcanales";
-import ColumnaHilos from "../sidebar/ColumnaHilos";
+import ColumnaCanales from "../navigation/ColumnaCanales";
+import ColumnaSubcanales from "../navigation/ColumnaSubcanales";
+import ColumnaHilos from "../navigation/ColumnaHilos";
 import ChatArea from "../chat/ChatArea";
-import Encabezado from "./Encabezado";
+import Encabezado from "../modules/Encabezado";
 
 interface PropiedadesDashboard {
   datosUsuario: Usuario;
@@ -21,41 +21,6 @@ export default function Dashboard({ datosUsuario, alCerrarSesion }: PropiedadesD
 
   const esAdministrador = datosUsuario.rol === "admin";
 
-  const crearCanal = async () => {
-    const nombre = prompt("Nombre del canal:");
-    if (!nombre) return;
-    const { collection, addDoc, serverTimestamp } = await import("firebase/firestore");
-    const { db } = await import("@/lib/firebase");
-    await addDoc(collection(db, "canales"), {
-      nombre,
-      descripcion: "",
-      creadoEn: serverTimestamp(),
-    });
-  };
-
-  const crearSubcanal = async () => {
-    if (!canalActivo) return;
-    const nombre = prompt("Nombre del subcanal:");
-    if (!nombre) return;
-    const { collection, addDoc, serverTimestamp } = await import("firebase/firestore");
-    const { db } = await import("@/lib/firebase");
-    await addDoc(collection(db, `canales/${canalActivo.id}/subcanales`), {
-      nombre,
-      creadoEn: serverTimestamp(),
-    });
-  };
-
-  const crearHilo = async () => {
-    if (!canalActivo || !subcanalActivo) return;
-    const nombre = prompt("Nombre del hilo:");
-    if (!nombre) return;
-    const { collection, addDoc, serverTimestamp } = await import("firebase/firestore");
-    const { db } = await import("@/lib/firebase");
-    await addDoc(collection(db, `canales/${canalActivo.id}/subcanales/${subcanalActivo.id}/hilos`), {
-      nombre,
-      creadoEn: serverTimestamp(),
-    });
-  };
 
   return (
     <div className="flex flex-col h-screen bg-[#1e1f22] text-white overflow-hidden">

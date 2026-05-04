@@ -12,6 +12,18 @@ interface PropiedadesColumnaCanales {
   alCrearCanal: () => void;
 }
 
+const manejarCrearCanal = async () => {
+  const nombre = prompt("Nombre del canal:"); // El prompt sigue aquí
+  if (!nombre) return;
+
+  try {
+    // Llamamos al servicio pasando el ID de la empresa que viene de la URL
+    await crearCanalService(nombre, empresaId); 
+  } catch (error) {
+    console.error("Error al crear:", error);
+  }
+};
+
 export default function ColumnaCanales({ canalActivo, alSeleccionarCanal, esAdministrador, alCrearCanal }: PropiedadesColumnaCanales) {
   const [canales, setCanales] = useState<Canal[]>([]);
   const [cargando, setCargando] = useState(true);

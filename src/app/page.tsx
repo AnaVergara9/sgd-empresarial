@@ -6,8 +6,8 @@ import { useState } from "react";
 
 // Importamos los componentes de la interfaz
 import Dashboard from "@/components/layout/Dashboard";
-import Login from "@/components/layout/Login";
-import SetupProfile from "@/components/layout/SetupProfile";
+import Login from "@/components/modules/Login";
+import SetupProfile from "@/components/modules/SetupProfile";
 
 /**
  * Componente principal de la página de inicio.
