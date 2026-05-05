@@ -17,7 +17,7 @@ export default function ColumnaCanales({ canalActivo, alSeleccionarCanal, esAdmi
   const [canales, setCanales] = useState<Canal[]>([]);
   const [cargando, setCargando] = useState(true);
 
-  useEffect(() => {
+  /*useEffect(() => {
     const ruta = collection(db, "empresas", empresaId, "canales"); //ruta específica para los canales de la empresa
     const consulta = query(ruta, orderBy("creadoEn", "asc"));
 
@@ -72,4 +72,5 @@ export default function ColumnaCanales({ canalActivo, alSeleccionarCanal, esAdmi
       </div>
     </div>
   );
+  */
 }

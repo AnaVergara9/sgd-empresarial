@@ -1,3 +1,6 @@
 {
-  "/page": "app/page.js"
+  "/dashboard/page": "app/dashboard/page.js",
+  "/unirse/page": "app/unirse/page.js",
+  "/page": "app/page.js",
+  "/registro-empresa/page": "app/registro-empresa/page.js"
 }

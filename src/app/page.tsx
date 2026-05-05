@@ -1,46 +1,68 @@
-"use client"; // Indica que este es un Componente de Cliente de React
+"use client";
 
-// Importamos los hooks necesarios de React y de nuestra aplicación
-import { useAutenticacion } from "@/hooks/useAuth";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-// Importamos los componentes de la interfaz
-import Dashboard from "@/components/layout/Dashboard";
-import Login from "@/components/modules/Login";
-import SetupProfile from "@/components/modules/SetupProfile";
+export default function LandingPage() {
+  const router = useRouter();
 
-/**
- * Componente principal de la página de inicio.
- * Se encarga de decidir qué vista mostrar al usuario según su estado de autenticación:
- * 1. Pantalla de carga (mientras se verifica la sesión)
- * 2. Pantalla de Login (si no ha iniciado sesión)
- * 3. Pantalla de Configuración de Perfil (si es la primera vez que entra)
- * 4. Dashboard (si ya está autenticado y tiene perfil)
- */
-export default function Home() {
-  // Extraemos los datos y funciones de nuestro hook personalizado de autenticación
-  const { usuarioAuth, datosUsuario, cargando, login, logout, configurarPerfil } = useAutenticacion();
-
-  // Si todavía estamos cargando la información del usuario, mostramos un spinner (rueda de carga)
-  if (cargando) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-discord-darkest text-white">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-discord-accent"></div>
+  return (
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 font-sans">
+      {/* Encabezado Estilo Dashboard */}
+      <div className="mb-12 text-center">
+        <span className="text-[#10b981] font-semibold text-sm tracking-widest uppercase">Bienvenido al Sistema</span>
+        <h1 className="text-4xl font-extrabold text-[#1e293b] mt-2">¿Cómo deseas ingresar hoy?</h1>
+        <p className="text-[#64748b] mt-4">Selecciona tu perfil para acceder a las herramientas personalizadas.</p>
       </div>
-    );
-  }
 
-  // Si el usuario no ha iniciado sesión, mostramos el componente de Login
-  if (!usuarioAuth) {
-    return <Login alCerrarSesion={login} />;
-  }
+      {/* Contenedor de Tarjetas (Cuadrados diferenciadores) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl w-full">
+        
+        {/* Tarjeta de Empresa (Admin) */}
+        <button 
+          onClick={() => router.push("/registro-empresa")}
+          className="group relative bg-white p-10 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 text-left flex flex-col items-start"
+        >
+          <div className="w-16 h-16 bg-[#10b981]/10 rounded-2xl flex items-center justify-center mb-6 text-3xl group-hover:bg-[#10b981] group-hover:text-white transition-colors duration-300">
+            🏢
+          </div>
+          <div className="flex items-center justify-between w-full mb-4">
+            <h2 className="text-2xl font-bold text-[#1e293b]">Soy Empresa</h2>
+            <span className="bg-slate-100 text-slate-500 text-[10px] px-3 py-1 rounded-full uppercase font-bold tracking-tighter">Administrador</span>
+          </div>
+          <p className="text-[#64748b] text-sm leading-relaxed mb-8">
+            Registra tu organización, gestiona departamentos y obtén el código de acceso exclusivo para tus colaboradores.
+          </p>
+          <div className="mt-auto flex items-center text-[#10b981] font-bold group-hover:gap-4 transition-all">
+            Configurar Empresa <span className="ml-2">→</span>
+          </div>
+        </button>
 
-  // Si el usuario ya inició sesión pero no hemos encontrado sus datos en la base de datos (Firestore),
-  // le pedimos que complete su perfil (por ejemplo, el nombre de su empresa)
-  if (!datosUsuario) {
-    return <SetupProfile alCompletar={configurarPerfil} />;
-  }
+        {/* Tarjeta de Empleado */}
+        <button 
+          onClick={() => {router.push("/unirse");}}
+          className="group relative bg-[#1e293b] p-10 rounded-[2rem] border border-slate-800 shadow-2xl hover:shadow-[#1e293b]/20 hover:-translate-y-2 transition-all duration-300 text-left flex flex-col items-start"
+        >
+          <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-6 text-3xl group-hover:bg-white group-hover:text-[#1e293b] transition-colors duration-300">
+            🔑
+          </div>
+          <div className="flex items-center justify-between w-full mb-4">
+            <h2 className="text-2xl font-bold text-white">Soy Empleado</h2>
+            <span className="bg-white/10 text-white/60 text-[10px] px-3 py-1 rounded-full uppercase font-bold tracking-tighter">Colaborador</span>
+          </div>
+          <p className="text-slate-400 text-sm leading-relaxed mb-8">
+            Ingresa con el código único de tu organización para reportar actividades y participar en los hilos de tu equipo.
+          </p>
+          <div className="mt-auto flex items-center text-white font-bold group-hover:gap-4 transition-all">
+            Ingresar Código <span className="ml-2">→</span>
+          </div>
+        </button>
 
-  // Si todo está correcto (sesión iniciada y perfil completo), mostramos el Dashboard principal
-  return <Dashboard datosUsuario={datosUsuario} alCerrarSesion={logout} />;
+      </div>
+
+      {/* Footer Minimalista */}
+      <footer className="mt-16 text-slate-400 text-xs">
+        Plataforma de Monitoreo Empresarial v2.0
+      </footer>
+    </div>
+  );
 }

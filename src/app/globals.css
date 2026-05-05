@@ -2,41 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { /*rgb*/
-  --color-texto: 0, 0, 0;
-  --color-fondo: 173, 216, 230;
-}
-
-html, body {
-  height: 100%;
-}
-
+/* Esto asegura que el fondo sea oscuro desde el primer segundo */
 body {
-  color: rgb(var(--color-texto));
-  background: rgb(var(--color-fondo));
-  font-family: 'Inter', sans-serif;
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-}
-
-/* Custom scrollbar for Discord style */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #2e3338;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #202225;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #18191c;
+  background-color: #1e1f22;
+  margin: 0;
+  color: white;
 }
