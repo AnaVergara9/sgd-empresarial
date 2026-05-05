@@ -2,6 +2,7 @@ export type Rol = "admin" | "empleado";
 
 export interface Usuario {
   uid: string; // ID único del usuario
+  cedula: string;
   nombre: string;
   cargo: string;
   rol: Rol;
@@ -14,7 +15,6 @@ export interface Usuario {
 export interface Canal {
   id: string;
   nombre: string;
-  descripcion: string;
   creadoEn: any;
 }
 
@@ -34,6 +34,7 @@ export interface ArchivoAdjunto {
   nombre: string;
   url: string;
   tipo: string;
+  tamano?: string;
 }
 
 export interface Reacciones {
@@ -44,6 +45,7 @@ export interface Mensaje {
   id: string;
   texto: string;
   autorId: string;
+  autorCedula: string;
   autorNombre: string;
   fecha: any;
   archivos: ArchivoAdjunto[];

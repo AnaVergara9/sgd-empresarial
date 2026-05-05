@@ -5,7 +5,7 @@ import { Usuario, Canal, Subcanal, Hilo } from "@/types";
 
 import ColumnaCanales from "../navigation/ColumnaCanales";
 import ColumnaSubcanales from "../navigation/ColumnaSubcanales";
-import ColumnaHilos from "../navigation/ColumnaHilos";
+import ColumnaHilos from "../navigation/Hilos";
 import ChatArea from "../chat/ChatArea";
 import Encabezado from "../modules/Encabezado";
 

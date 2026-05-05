@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-// Importamos funciones de Firebase Auth (Autenticación)
-import { onAuthStateChanged, User, signInWithPopup, signOut } from "firebase/auth";
-// Importamos nuestra configuración de Firebase
-import { auth, db, googleProvider } from "@/lib/firebase";
-// Importamos funciones de Firebase Firestore (Base de datos)
-import { doc, getDoc, setDoc } from "firebase/firestore";
-// Importamos nuestro tipo Usuario (definición de la forma de los datos)
-import { Usuario } from "@/types";
+import { onAuthStateChanged, User, signInWithPopup, signOut } from "firebase/auth"; // Importamos funciones de Firebase Auth
+import { auth, db, googleProvider } from "@/lib/firebase"; // Importamos configuración de Firebase
+import { doc, getDoc, setDoc } from "firebase/firestore";// Importamos funciones de Firebase (Firestore)
+import { Usuario } from "@/types"; // Importamos tipo Usuario
+import { registrarNuevoUsuario } from "@/services/authService"; // Importamos el servicio
 
 /**
  * Custom Hook: useAuth
@@ -16,12 +13,9 @@ import { Usuario } from "@/types";
  * Permite que cualquier componente sepa quién está conectado y qué datos tiene.
  */
 export function useAutenticacion() {
-  // Guardamos el usuario de autenticación de Firebase (trae nombre, email, foto...)
-  const [usuarioAuth, setUsuarioAuth] = useState<User | null>(null);
-  // Guardamos los datos adicionales del usuario que nosotros definimos (empresa, color de avatar...)
-  const [datosUsuario, setDatosUsuario] = useState<Usuario | null>(null);
-  // Un indicador para saber si todavía estamos procesando el inicio de sesión
-  const [cargando, setCargando] = useState(true);
+  const [usuarioAuth, setUsuarioAuth] = useState<User | null>(null); //Guarda datos de autenticación (trae nombre, cedula, email..)
+  const [datosUsuario, setDatosUsuario] = useState<Usuario | null>(null); //Guarda datos adicionales del usuario (empresa, color de avatar..)
+  const [cargando, setCargando] = useState(true); //Indicador si todavía estamos cargando el inicio de sesión
 
   // Este efecto se ejecuta una sola vez al cargar la página
   useEffect(() => {
@@ -74,33 +68,38 @@ export function useAutenticacion() {
   };
 
   /**
-   * Función para configurar el perfil de un usuario nuevo por primera vez.
-   * Guarda los datos en Firestore (base de datos en la nube).
+   * Ahora esta función recibe la CEDULA y usa el servicio de validación
    */
-  const configurarPerfil = async (empresa: string, cargo: string) => {
+  const configurarPerfil = async (cedula: string, empresa: string, cargo: string) => {
     if (!usuarioAuth) return;
-    
-    // Colores aleatorios para darle un toque visual diferente a cada usuario
-    const colors = ["#5865f2", "#3ba55c", "#ed4245", "#faa61a", "#9b59b6"];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
-    
+
+
+    const rolActual = "admin"; 
+    // Lógica de colores por rol
+    const color = rolActual === "admin" ? "#5865F2" : "#43b581";
+
     const nuevoUsuario: Usuario = {
       uid: usuarioAuth.uid,
+      cedula: cedula,
       nombre: usuarioAuth.displayName || "Usuario",
       cargo: cargo,
-      rol: "admin", // Por defecto, el rol es "admin"
+      rol: rolActual,
       email: usuarioAuth.email || "",
-      empresa: empresa,
-      avatarColor: randomColor,
+      empresa: empresa, // El slug para la URL
+      avatarColor: color,
       creadoEn: new Date(),
     };
 
-    // Guardamos la información en la colección "usuarios" con el ID del usuario de Google
-    await setDoc(doc(db, "usuarios", usuarioAuth.uid), nuevoUsuario);
-    // Actualizamos el estado local para que la interfaz sepa que ya hay perfil
-    setDatosUsuario(nuevoUsuario);
+    try {
+      // Se llama al servicio (Controlador) para validar cédula y guardar
+      await registrarNuevoUsuario(nuevoUsuario);
+      setDatosUsuario(nuevoUsuario);
+    } catch (error: any) {
+      // Manejo de error si la cédula ya existe
+      alert(error.message);
+      throw error;
+    }
   };
 
-  // Exponemos (retornamos) todos los datos y funciones para que sean usados en el resto de la app
   return { usuarioAuth, datosUsuario, cargando, login, logout, configurarPerfil };
 }

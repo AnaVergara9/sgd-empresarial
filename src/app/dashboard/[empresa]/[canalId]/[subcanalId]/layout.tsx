@@ -1,4 +1,4 @@
-import ColumnaHilos from "@/components/navigation/ColumnaHilos";
+import ColumnaHilos from "@/components/navigation/Hilos";
 
 export default function AreaLayout({
   children,
