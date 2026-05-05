@@ -9,33 +9,24 @@ interface PropiedadesColumnaCanales {
   canalActivo: Canal | null;
   alSeleccionarCanal: (canal: Canal) => void;
   esAdministrador: boolean;
-  alCrearCanal: () => void;
+  alCrearCanal: (nombre: string) => void;
+  empresaId: string;
 }
 
-const manejarCrearCanal = async () => {
-  const nombre = prompt("Nombre del canal:"); // El prompt sigue aquí
-  if (!nombre) return;
-
-  try {
-    // Llamamos al servicio pasando el ID de la empresa que viene de la URL
-    await crearCanalService(nombre, empresaId); 
-  } catch (error) {
-    console.error("Error al crear:", error);
-  }
-};
-
-export default function ColumnaCanales({ canalActivo, alSeleccionarCanal, esAdministrador, alCrearCanal }: PropiedadesColumnaCanales) {
+export default function ColumnaCanales({ canalActivo, alSeleccionarCanal, esAdministrador, alCrearCanal, empresaId }: PropiedadesColumnaCanales) {
   const [canales, setCanales] = useState<Canal[]>([]);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
-    const consulta = query(collection(db, "canales"), orderBy("creadoEn", "asc"));
+    const ruta = collection(db, "empresas", empresaId, "canales"); //ruta específica para los canales de la empresa
+    const consulta = query(ruta, orderBy("creadoEn", "asc"));
+
     const cancelarSuscripcion = onSnapshot(consulta, (resultado) => {
       setCanales(resultado.docs.map(documento => ({ id: documento.id, ...documento.data() } as Canal)));
       setCargando(false);
     });
     return () => cancelarSuscripcion();
-  }, []);
+  }, [empresaId]);
 
   return (
     <div className="w-60 flex-shrink-0 bg-[#2b2d31] flex flex-col border-r border-white/10 h-full">
@@ -43,8 +34,11 @@ export default function ColumnaCanales({ canalActivo, alSeleccionarCanal, esAdmi
         <h2 className="text-white font-semibold text-sm uppercase tracking-wide">Canales</h2>
         {esAdministrador && (
           <button
-            onClick={alCrearCanal}
-            className="text-gray-400 hover:text-white text-xl leading-none transition-colors"
+            onClick={() => {
+              const nombre = prompt("Nombre del nuevo canal:");
+              if (nombre) alCrearCanal(nombre);
+            }}
+            className="text-gray-400 hover:text-white text-xl"
             title="Crear canal"
           >
             +

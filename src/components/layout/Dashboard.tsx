@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Usuario, Canal, Subcanal, Hilo } from "@/types";
 
+// Importación de servicios creados
+import { crearCanal, crearSubcanal, crearHilo } from "@/services/firestoreService";
 import ColumnaCanales from "../navigation/ColumnaCanales";
 import ColumnaSubcanales from "../navigation/ColumnaSubcanales";
 import ColumnaHilos from "../navigation/Hilos";
@@ -37,7 +39,7 @@ export default function Dashboard({ datosUsuario, alCerrarSesion }: PropiedadesD
             setHiloActivo(null);
           }}
           esAdministrador={esAdministrador}
-          alCrearCanal={crearCanal}
+          alCrearCanal={(nombre) => crearCanal(nombre, datosUsuario.empresa)}
         />
 
         {/* Columna 2 — visible solo si hay canal activo */}
@@ -50,7 +52,7 @@ export default function Dashboard({ datosUsuario, alCerrarSesion }: PropiedadesD
               setHiloActivo(null);
             }}
             esAdministrador={esAdministrador}
-            alCrearSubcanal={crearSubcanal}
+            alCrearSubcanal={(nombre) => crearSubcanal(nombre, datosUsuario.empresa, canalActivo!.id)}
           />
         )}
 
@@ -62,7 +64,7 @@ export default function Dashboard({ datosUsuario, alCerrarSesion }: PropiedadesD
             hiloActivo={hiloActivo}
             alSeleccionarHilo={setHiloActivo}
             esAdministrador={esAdministrador}
-            alCrearHilo={crearHilo}
+            alCrearHilo={(nombre) => crearHilo(nombre, datosUsuario.empresa, canalActivo!.id, subcanalActivo!.id)}
           />
         )}
 

@@ -11,7 +11,7 @@ interface PropiedadesColumnaHilos {
   hiloActivo: Hilo | null;
   alSeleccionarHilo: (hilo: Hilo) => void;
   esAdministrador: boolean;
-  alCrearHilo: () => void;
+  alCrearHilo: (nombre: string) => void;
 }
 
 export default function ColumnaHilos({ canalActivo, subcanalActivo, hiloActivo, alSeleccionarHilo, esAdministrador, alCrearHilo }: PropiedadesColumnaHilos) {
@@ -39,11 +39,16 @@ export default function ColumnaHilos({ canalActivo, subcanalActivo, hiloActivo, 
         </div>
         {esAdministrador && (
           <button
-            onClick={alCrearHilo}
+            onClick={() => {
+              const nombre = prompt("Ingresa el nombre:"); // Se pide el nombre al usuario
+              if (nombre) {
+                alCrearHilo(nombre); // Solo crea el hilo si se ingresó un nombre
+              }
+            }}
             className="text-gray-400 hover:text-white text-xl leading-none transition-colors"
             title="Crear hilo"
           >
-            +
+          +
           </button>
         )}
       </div>
