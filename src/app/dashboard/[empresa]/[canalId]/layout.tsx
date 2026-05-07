@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation"; // Importamos useRouter
 import { useAutenticacion } from "@/hooks/useAuth";
 import ColumnaSubcanales from "@/components/navigation/ColumnaSubcanales";
 import { crearSubcanal } from "@/services/firestoreService";
@@ -8,9 +8,9 @@ import { Subcanal } from "@/types";
 
 export default function CanalLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
+  const router = useRouter(); // Inicializamos el router
   const { datosUsuario } = useAutenticacion();
 
-  // Obtenemos los IDs de la URL
   const empresaId = params.empresa as string;
   const canalId = params.canalId as string;
 
@@ -20,15 +20,18 @@ export default function CanalLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      {/* 1. Columna 2 — Lista de Subcanales */}
-      {/* Esta columna aparece solo porque ya estamos dentro de la ruta [canalId] */}
+      {/* Columna 2 — Lista de Subcanales */}
       <ColumnaSubcanales
+        canalId={canalId}
         esAdministrador={esAdministrador}
-        alCrearSubcanal={(nombre) => crearSubcanal(nombre, empresaId, canalId)} canalActivo={undefined} subcanalActivo={null} alSeleccionarSubcanal={function (subcanal: Subcanal): void {
-          throw new Error("Function not implemented.");
-        } }      />
+        alCrearSubcanal={(nombre) => crearSubcanal(nombre, empresaId, canalId)}
+        // En lugar de un Error, ahora navegamos de verdad:
+        alSeleccionarSubcanal={(subcanal: Subcanal) => {
+          router.push(`/dashboard/${empresaId}/${canalId}/${subcanal.id}`);
+        } } subcanalId={""}        
+      />
 
-      {/* 2. Espacio para las siguientes capas (Hilos y ChatArea) */}
+      {/* Espacio para Hilos y ChatArea */}
       <div className="flex flex-1 overflow-hidden">
         {children}
       </div>

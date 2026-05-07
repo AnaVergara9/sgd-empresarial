@@ -8,13 +8,14 @@ import { Canal, Subcanal, Hilo } from "@/types";
 interface PropiedadesColumnaHilos {
   canalId: string;
   subcanalId: string;
-  hiloId: string | null;
+  hiloId?: string | null;
   alSeleccionarHilo: (hilo: Hilo) => void;
   esAdministrador: boolean;
   alCrearHilo: (nombre: string) => void;
+  hiloActivo?: Hilo | null;
 }
 
-export default function ColumnaHilos({ canalId, subcanalId, hiloId, alSeleccionarHilo, esAdministrador, alCrearHilo }: PropiedadesColumnaHilos) {
+export default function ColumnaHilos({ canalId, subcanalId, hiloId, alSeleccionarHilo, esAdministrador, alCrearHilo, hiloActivo }: PropiedadesColumnaHilos) {
   const [hilos, setHilos] = useState<Hilo[]>([]);
   const [cargando, setCargando] = useState(true);
 
@@ -67,7 +68,7 @@ export default function ColumnaHilos({ canalId, subcanalId, hiloId, alSelecciona
             key={hilo.id}
             onClick={() => alSeleccionarHilo(hilo)}
             className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-2 ${
-              hiloId === hilo.id
+              hiloId === hilo.id || (hiloActivo && hiloActivo.id === hilo.id)
                 ? "bg-[#5865f2] text-white"
                 : "text-gray-400 hover:text-white hover:bg-white/5"
             }`}

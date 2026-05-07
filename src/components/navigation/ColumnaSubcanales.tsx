@@ -10,7 +10,7 @@ interface PropiedadesColumnaSubcanales {
   subcanalId: string;
   alSeleccionarSubcanal: (subcanal: Subcanal) => void;
   esAdministrador: boolean;
-  alCrearSubcanal: (nombre: string) => void;
+  alCrearSubcanal?: (nombre: string) => void;
 }
 
 export default function ColumnaSubcanales({ canalId, subcanalId, alSeleccionarSubcanal, esAdministrador, alCrearSubcanal }: PropiedadesColumnaSubcanales) {
@@ -40,7 +40,7 @@ export default function ColumnaSubcanales({ canalId, subcanalId, alSeleccionarSu
           <button
             onClick={() => {
               const nombre = prompt("Ingresa el nombre:"); // Se pide el nombre al usuario
-              if (nombre) {
+              if (nombre && alCrearSubcanal) {
                 alCrearSubcanal(nombre); // Solo crea el subcanal si se ingresó un nombre
               }
             }}

@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useAutenticacion } from "@/hooks/useAuth";
 import ColumnaHilos from "@/components/navigation/Hilos"; // Asegúrate que la ruta sea correcta
 import { crearHilo } from "@/services/firestoreService";
+import router from "next/router";
 
 export default function SubcanalLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
@@ -24,13 +25,13 @@ export default function SubcanalLayout({ children }: { children: React.ReactNode
       <ColumnaHilos
         canalId={canalId}
         subcanalId={subcanalId}
-        // hiloActivo lo manejará la URL automáticamente en el siguiente nivel
-        alSeleccionarHilo={(hilo) => {
-          // Navegamos a la ruta del hilo
-          window.location.href = `/dashboard/${empresaId}/${canalId}/${subcanalId}/${hilo.id}`;
-        } }
         esAdministrador={esAdministrador}
-        alCrearHilo={(nombre) => crearHilo(nombre, empresaId, canalId, subcanalId)} hiloActivo={null}      />
+        // Al seleccionar un hilo, navegamos a la ruta del hilo
+        alSeleccionarHilo={(hilo) => {
+          router.push(`/dashboard/${empresaId}/${canalId}/${subcanalId}/${hilo.id}`);
+        }}
+        alCrearHilo={(nombre) => crearHilo(nombre, empresaId, canalId, subcanalId)}
+      />
 
       {/* 2. Espacio para el ChatArea final */}
       <div className="flex flex-1 overflow-hidden">

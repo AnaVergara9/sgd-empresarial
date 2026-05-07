@@ -115,7 +115,7 @@ export default function UnirseEquipo() {
               onClick={handleGoogleLogin}
               className="w-full py-4 bg-white text-slate-900 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-100 transition-all"
             >
-              <img src="https://www.google.com/favicon.ico" alt="icono" width={20} height={20} className="w-5 h-5" />
+              <Image src="https://www.google.com/favicon.ico" alt="icono" width={20} height={20} className="w-5 h-5" />
               Continuar con Google
             </button>
           </>

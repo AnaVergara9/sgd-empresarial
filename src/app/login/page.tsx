@@ -44,7 +44,7 @@ export default function LoginPage() {
           onClick={handleLogin}
           className="w-full py-4 bg-white border-2 border-slate-200 text-slate-900 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
         >
-          <img src="https://www.google.com/favicon.ico" alt="Google" width={20} height={20} className="w-5 h-5" />
+          <Image src="https://www.google.com/favicon.ico" alt="Google" width={20} height={20} className="w-5 h-5" />
           Ingresar con Google
         </button>
         

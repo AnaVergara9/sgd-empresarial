@@ -1,8 +1,14 @@
 {
-  "/page": "app/page.js",
-  "/unirse/page": "app/unirse/page.js",
-  "/registro-empresa/page": "app/registro-empresa/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/auth/route": "app/api/auth/route.js",
+  "/api/empresa/route": "app/api/empresa/route.js",
   "/login/page": "app/login/page.js",
-  "/dashboard/[empresa]/page": "app/dashboard/[empresa]/page.js"
+  "/page": "app/page.js",
+  "/registro-empresa/page": "app/registro-empresa/page.js",
+  "/unirse/page": "app/unirse/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/dashboard/[empresa]/page": "app/dashboard/[empresa]/page.js",
+  "/dashboard/[empresa]/[canalId]/page": "app/dashboard/[empresa]/[canalId]/page.js",
+  "/dashboard/[empresa]/[canalId]/[subcanalId]/[hiloId]/page": "app/dashboard/[empresa]/[canalId]/[subcanalId]/[hiloId]/page.js",
+  "/dashboard/[empresa]/[canalId]/[subcanalId]/page": "app/dashboard/[empresa]/[canalId]/[subcanalId]/page.js"
 }
