@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 interface Props {
+  empresaId: string;
   canalActivo: Canal | null;
   subcanalActivo: Subcanal | null;
   hiloActivo: Hilo;
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export default function ChatArea({
+  empresaId,
   canalActivo,
   subcanalActivo,
   hiloActivo,

@@ -1,65 +1,66 @@
 "use client";
-
-import { useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { useAutenticacion } from "@/hooks/useAuth";
 
-export default function LandingPage() {
-  const [rolSeleccionado, setRolSeleccionado] = useState<"empresa" | "empleado" | null>(null);
+export default function LoginPage() {
+  const { login, usuarioAuth, datosUsuario, cargando } = useAutenticacion();
   const router = useRouter();
 
-  return (
-    <div className="min-h-screen bg-[#1e1f22] text-white flex flex-col items-center p-6">
-      {/* Header / Logo */}
-      <header className="w-full max-w-6xl py-8 flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tighter text-[#5865f2]">TU_LOGO</h1>
-        <nav className="space-x-6 text-sm font-medium text-gray-400">
-          <a href="#" className="hover:text-white transition-colors">Funcionalidades</a>
-          <a href="#" className="hover:text-white transition-colors">Precios</a>
-        </nav>
-      </header>
+  useEffect(() => {
+    if (usuarioAuth && datosUsuario) {
+      router.push("/dashboard");
+    }
+  }, [usuarioAuth, datosUsuario, router]);
 
-      {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center text-center max-w-3xl">
-        <h2 className="text-5xl font-extrabold mb-6">
-          La comunicación de tu empresa, <span className="text-[#5865f2]">organizada.</span>
-        </h2>
-        <p className="text-gray-400 text-lg mb-12">
-          Gestiona canales, hilos y equipos en un solo lugar. Elige cómo quieres empezar hoy.
+  const handleLogin = async () => {
+    try {
+      await login();
+    } catch (error) {
+      console.error("Error al iniciar sesión", error);
+    }
+  };
+
+  if (cargando) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#10b981]"></div>
+      </div>
+    );
+  }
+
+  return (
+    
+    <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-6">
+      <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-200 max-w-md w-full text-center">
+        <div className="text-4xl mb-6">👤</div>
+        <h2 className="text-3xl font-bold text-[#1e293b] mb-2">Bienvenido de nuevo</h2>
+        <p className="text-slate-500 mb-8 text-sm">
+          Inicia sesión para acceder a tu panel de control y hilos de equipo.
         </p>
 
-        {/* Contenedor de Opciones */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-          
-          {/* Opción Empresa */}
-          <div 
-            onClick={() => router.push("/registro-empresa")}
-            className="group p-8 bg-[#2b2d31] rounded-2xl border-2 border-transparent hover:border-[#5865f2] transition-all cursor-pointer text-left"
-          >
-            <div className="w-12 h-12 bg-[#5865f2]/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-[#5865f2] transition-colors">
-              <span className="text-2xl">🏢</span>
-            </div>
-            <h3 className="text-xl font-bold mb-2">Soy una Empresa</h3>
-            <p className="text-gray-400 text-sm">
-              Registra tu organización, crea departamentos y obtén un código único para tus empleados.
-            </p>
+        <button 
+          onClick={handleLogin}
+          className="w-full py-4 bg-white border-2 border-slate-200 text-slate-900 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+        >
+          <img src="https://www.google.com/favicon.ico" alt="Google" width={20} height={20} className="w-5 h-5" />
+          Ingresar con Google
+        </button>
+        
+        {usuarioAuth && !datosUsuario && (
+          <div className="mt-6 p-4 bg-amber-50 text-amber-700 rounded-xl text-sm border border-amber-100">
+            Parece que no has completado tu registro. Por favor, vuelve a la página principal y selecciona &quot;Soy Empleado&quot; o &quot;Soy Empresa&quot; según corresponda.
           </div>
+        )}
 
-          {/* Opción Empleado */}
-          <div 
-            onClick={() => router.push("/unirse")}
-            className="group p-8 bg-[#2b2d31] rounded-2xl border-2 border-transparent hover:border-[#43b581] transition-all cursor-pointer text-left"
-          >
-            <div className="w-12 h-12 bg-[#43b581]/20 rounded-lg flex items-center justify-center mb-4 group-hover:bg-[#43b581] transition-colors">
-              <span className="text-2xl">🔑</span>
-            </div>
-            <h3 className="text-xl font-bold mb-2">Soy un Empleado</h3>
-            <p className="text-gray-400 text-sm">
-              ¿Tienes un código de invitación? Ingrésalo aquí para unirte al equipo de tu empresa.
-            </p>
-          </div>
-
-        </div>
-      </main>
+        <button 
+          onClick={() => router.push("/")}
+          className="mt-8 text-slate-400 text-sm hover:text-slate-600 transition-colors"
+        >
+          ← Volver al inicio
+        </button>
+      </div>
     </div>
   );
 }

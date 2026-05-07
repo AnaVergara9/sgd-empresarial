@@ -5,7 +5,7 @@ import { onAuthStateChanged, User, signInWithPopup, signOut } from "firebase/aut
 import { auth, db, googleProvider } from "@/lib/firebase"; // Importamos configuración de Firebase
 import { doc, getDoc, setDoc } from "firebase/firestore";// Importamos funciones de Firebase (Firestore)
 import { Usuario } from "@/types"; // Importamos tipo Usuario
-import { registrarNuevoUsuario } from "@/services/authService"; // Importamos el servicio
+import { authService } from "@/services/authService"; // Importamos el servicio
 
 /**
  * Custom Hook: useAuth
@@ -70,20 +70,18 @@ export function useAutenticacion() {
   /**
    * Ahora esta función recibe la CEDULA y usa el servicio de validación
    */
-  const configurarPerfil = async (cedula: string, empresa: string, cargo: string) => {
+  const configurarPerfil = async (cedula: string, empresa: string, cargo: string, rol: "admin" | "empleado" = "empleado") => {
     if (!usuarioAuth) return;
 
-
-    const rolActual = "admin"; 
     // Lógica de colores por rol
-    const color = rolActual === "admin" ? "#5865F2" : "#43b581";
+    const color = rol === "admin" ? "#5865F2" : "#43b581";
 
     const nuevoUsuario: Usuario = {
       uid: usuarioAuth.uid,
       cedula: cedula,
       nombre: usuarioAuth.displayName || "Usuario",
       cargo: cargo,
-      rol: rolActual,
+      rol: rol,
       email: usuarioAuth.email || "",
       empresa: empresa, // El slug para la URL
       avatarColor: color,
@@ -91,8 +89,8 @@ export function useAutenticacion() {
     };
 
     try {
-      // Se llama al servicio (Controlador) para validar cédula y guardar
-      await registrarNuevoUsuario(nuevoUsuario);
+      // Se llama al servicio para validar cédula y guardar
+      await authService.registrarNuevoUsuario(nuevoUsuario);
       setDatosUsuario(nuevoUsuario);
     } catch (error: any) {
       // Manejo de error si la cédula ya existe

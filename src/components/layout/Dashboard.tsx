@@ -21,8 +21,15 @@ export default function Dashboard({ datosUsuario, alCerrarSesion }: PropiedadesD
   const [subcanalActivo, setSubcanalActivo] = useState<Subcanal | null>(null);
   const [hiloActivo, setHiloActivo] = useState<Hilo | null>(null);
 
-  const esAdministrador = datosUsuario.rol === "admin";
+  const esAdministrador = datosUsuario?.rol === "admin";
 
+  if (!datosUsuario) {
+  return (
+    <div className="min-h-screen bg-[#1e1f22] flex items-center justify-center text-white">
+      <p className="animate-pulse">Cargando perfil...</p>
+    </div>
+  );
+}
 
   return (
     <div className="flex flex-col h-screen bg-[#1e1f22] text-white overflow-hidden">
@@ -39,6 +46,7 @@ export default function Dashboard({ datosUsuario, alCerrarSesion }: PropiedadesD
             setHiloActivo(null);
           }}
           esAdministrador={esAdministrador}
+          empresaId={datosUsuario.empresa}
           alCrearCanal={(nombre) => crearCanal(nombre, datosUsuario.empresa)}
         />
 

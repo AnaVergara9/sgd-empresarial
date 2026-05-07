@@ -11,15 +11,30 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/unirse/page": [
+    "/login/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/unirse/page.js"
+      "static/chunks/app/login/page.js"
     ],
     "/registro-empresa/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/registro-empresa/page.js"
+    ],
+    "/unirse/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/unirse/page.js"
+    ],
+    "/dashboard/[empresa]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/[empresa]/page.js"
+    ],
+    "/dashboard/[empresa]/layout": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/[empresa]/layout.js"
     ],
     "/dashboard/page": [
       "static/chunks/webpack.js",

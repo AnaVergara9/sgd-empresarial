@@ -2,25 +2,39 @@ import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Usuario } from "@/types";
 
-export const registrarNuevoUsuario = async (datos: Usuario)=> {
-    try {
-        const rutaCedula = doc(db, "cedulas_registradas", datos.cedula); // Se guardan las cédulas registradas para evitar duplicados
-        const informacionCedula = await getDoc(rutaCedula); //Se obtiene la información de esa ruta (si existe o no)
+export const authService = {
+    registrarNuevoUsuario: async (datos: Usuario) => {
+        try {
+            const rutaCedula = doc(db, "cedulas_registradas", datos.cedula);
+            const informacionCedula = await getDoc(rutaCedula);
 
-        if (informacionCedula.exists()) {
-            throw new Error("Esta cédula ya está registrada en el sistema.");
-        }
-        await setDoc(rutaCedula, {uid: datos.uid}); // Si no existe, se reserva para ese usuario (cedula)
+            if (informacionCedula.exists()) {
+                throw new Error("Esta cédula ya está registrada en el sistema.");
+            }
+            await setDoc(rutaCedula, { uid: datos.uid });
 
-        //Se crea el perfil completo en la carpeta de usuarios
-        const rutaUsuario = doc(db, "usuarios", datos.uid);
-        await setDoc(rutaUsuario, {
-            ...datos,
-            creadoEn: serverTimestamp(), 
-        });
+            const rutaUsuario = doc(db, "usuarios", datos.uid);
+            await setDoc(rutaUsuario, {
+                ...datos,
+                rol: datos.rol || "empleado",
+                empresa: datos.empresa,
+                creadoEn: serverTimestamp(),
+                estado: "activo"
+            });
             return { success: true };
-    } catch (error: any) {
-        console.error("Error en el registro:", error.message);
-        throw error;
+        } catch (error: any) {
+            console.error("Error en el registro:", error.message);
+            throw error;
+        }
+    },
+
+    checkUserExists: async (uid: string) => {
+        try {
+            const docSnap = await getDoc(doc(db, "usuarios", uid));
+            return docSnap.exists() ? docSnap.data() as Usuario : null;
+        } catch (error) {
+            console.error("Error checking user existence:", error);
+            return null;
+        }
     }
 };
