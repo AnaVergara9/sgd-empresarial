@@ -6,14 +6,14 @@ import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { Canal } from "@/types";
 
 interface PropiedadesColumnaCanales {
-  canalActivo: Canal | null;
+  canalId: string;
   alSeleccionarCanal: (canal: Canal) => void;
   esAdministrador: boolean;
   alCrearCanal: (nombre: string) => Promise<any>;
   empresaId: string;
 }
 
-export default function ColumnaCanales({ canalActivo, alSeleccionarCanal, esAdministrador, alCrearCanal, empresaId }: PropiedadesColumnaCanales) {
+export default function ColumnaCanales({ canalId, alSeleccionarCanal, esAdministrador, alCrearCanal, empresaId }: PropiedadesColumnaCanales) {
   const [canales, setCanales] = useState<Canal[]>([]);
   const [cargando, setCargando] = useState(true);
 
@@ -60,7 +60,7 @@ export default function ColumnaCanales({ canalActivo, alSeleccionarCanal, esAdmi
             key={canal.id}
             onClick={() => alSeleccionarCanal(canal)}
             className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-2 ${
-              canalActivo?.id === canal.id
+              canalId === canal.id
                 ? "bg-[#5865f2] text-white"
                 : "text-gray-400 hover:text-white hover:bg-white/5"
             }`}

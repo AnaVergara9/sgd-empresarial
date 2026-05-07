@@ -6,20 +6,20 @@ import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { Canal, Subcanal } from "@/types";
 
 interface PropiedadesColumnaSubcanales {
-  canalActivo: Canal;
-  subcanalActivo: Subcanal | null;
+  canalId: string;
+  subcanalId: string;
   alSeleccionarSubcanal: (subcanal: Subcanal) => void;
   esAdministrador: boolean;
   alCrearSubcanal: (nombre: string) => void;
 }
 
-export default function ColumnaSubcanales({ canalActivo, subcanalActivo, alSeleccionarSubcanal, esAdministrador, alCrearSubcanal }: PropiedadesColumnaSubcanales) {
+export default function ColumnaSubcanales({ canalId, subcanalId, alSeleccionarSubcanal, esAdministrador, alCrearSubcanal }: PropiedadesColumnaSubcanales) {
   const [subcanales, setSubcanales] = useState<Subcanal[]>([]);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
     const consulta = query(
-      collection(db, `canales/${canalActivo.id}/subcanales`),
+      collection(db, `canales/${canalId}/subcanales`),
       orderBy("creadoEn", "asc")
     );
     const cancelarSuscripcion = onSnapshot(consulta, (resultado) => {
@@ -27,14 +27,14 @@ export default function ColumnaSubcanales({ canalActivo, subcanalActivo, alSelec
       setCargando(false);
     });
     return () => cancelarSuscripcion();
-  }, [canalActivo.id]);
+  }, [canalId]);
 
   return (
     <div className="w-60 flex-shrink-0 bg-[#2b2d31] flex flex-col border-r border-white/10 h-full">
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
         <div>
           <p className="text-gray-400 text-xs uppercase tracking-wide">Canal</p>
-          <h2 className="text-white font-semibold text-sm">{canalActivo.nombre}</h2>
+          <h2 className="text-white font-semibold text-sm">{canalId}</h2>
         </div>
         {esAdministrador && (
           <button
@@ -66,7 +66,7 @@ export default function ColumnaSubcanales({ canalActivo, subcanalActivo, alSelec
             key={subcanal.id}
             onClick={() => alSeleccionarSubcanal(subcanal)}
             className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-2 ${
-              subcanalActivo?.id === subcanal.id
+              subcanalId === subcanal.id
                 ? "bg-[#5865f2] text-white"
                 : "text-gray-400 hover:text-white hover:bg-white/5"
             }`}

@@ -6,21 +6,21 @@ import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { Canal, Subcanal, Hilo } from "@/types";
 
 interface PropiedadesColumnaHilos {
-  canalActivo: Canal;
-  subcanalActivo: Subcanal;
-  hiloActivo: Hilo | null;
+  canalId: string;
+  subcanalId: string;
+  hiloId: string | null;
   alSeleccionarHilo: (hilo: Hilo) => void;
   esAdministrador: boolean;
   alCrearHilo: (nombre: string) => void;
 }
 
-export default function ColumnaHilos({ canalActivo, subcanalActivo, hiloActivo, alSeleccionarHilo, esAdministrador, alCrearHilo }: PropiedadesColumnaHilos) {
+export default function ColumnaHilos({ canalId, subcanalId, hiloId, alSeleccionarHilo, esAdministrador, alCrearHilo }: PropiedadesColumnaHilos) {
   const [hilos, setHilos] = useState<Hilo[]>([]);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
     const consulta = query(
-      collection(db, `canales/${canalActivo.id}/subcanales/${subcanalActivo.id}/hilos`),
+      collection(db, `canales/${canalId}/subcanales/${subcanalId}/hilos`),
       orderBy("creadoEn", "asc")
     );
     const cancelarSuscripcion = onSnapshot(consulta, (resultado) => {
@@ -28,13 +28,13 @@ export default function ColumnaHilos({ canalActivo, subcanalActivo, hiloActivo, 
       setCargando(false);
     });
     return () => cancelarSuscripcion();
-  }, [canalActivo.id, subcanalActivo.id]);
+  }, [canalId, subcanalId]);
 
   return (
     <div className="w-60 flex-shrink-0 bg-[#2b2d31] flex flex-col border-r border-white/10 h-full">
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
         <div>
-          <p className="text-gray-400 text-xs uppercase tracking-wide">{subcanalActivo.nombre}</p>
+          <p className="text-gray-400 text-xs uppercase tracking-wide">{subcanalId}</p>
           <h2 className="text-white font-semibold text-sm">Hilos</h2>
         </div>
         {esAdministrador && (
@@ -67,7 +67,7 @@ export default function ColumnaHilos({ canalActivo, subcanalActivo, hiloActivo, 
             key={hilo.id}
             onClick={() => alSeleccionarHilo(hilo)}
             className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-2 ${
-              hiloActivo?.id === hilo.id
+              hiloId === hilo.id
                 ? "bg-[#5865f2] text-white"
                 : "text-gray-400 hover:text-white hover:bg-white/5"
             }`}

@@ -1,6 +1,7 @@
 // app/dashboard/page.tsx
 "use client";
 
+import Encabezado from "@/components/modules/Encabezado";
 import { useAutenticacion } from "@/hooks/useAuth";
 import { useState } from "react";
 // ... importa tus columnas y el Encabezado aquí

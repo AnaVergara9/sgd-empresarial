@@ -18,17 +18,17 @@ import { Button } from "@/components/ui/button";
 
 interface Props {
   empresaId: string;
-  canalActivo: Canal | null;
-  subcanalActivo: Subcanal | null;
-  hiloActivo: Hilo;
+  canalId: string | null;
+  subcanalId: string | null;
+  hiloId: string;
   datosUsuario: Usuario;
 }
 
 export default function ChatArea({
   empresaId,
-  canalActivo,
-  subcanalActivo,
-  hiloActivo,
+  canalId,
+  subcanalId,
+  hiloId,
   datosUsuario,
 }: Props) {
   const [mensajes, setMensajes] = useState<TipoMensaje[]>([]);
@@ -38,11 +38,11 @@ export default function ChatArea({
 
   const finalRef = useRef<HTMLDivElement>(null);
 
-  const ruta = `canales/${canalActivo?.id}/subcanales/${subcanalActivo?.id}/hilos/${hiloActivo.id}/mensajes`;
+  const ruta = `canales/${canalId}/subcanales/${subcanalId}/hilos/${hiloId}/mensajes`;
 
   // Escuchar mensajes en tiempo real
   useEffect(() => {
-    if (!canalActivo || !subcanalActivo) return;
+    if (!canalId || !subcanalId || !hiloId) return;
 
     const q = query(collection(db, ruta), orderBy("fecha", "asc"));
 
@@ -56,7 +56,7 @@ export default function ChatArea({
     });
 
     return () => unsub();
-  }, [canalActivo?.id, subcanalActivo?.id, hiloActivo.id, ruta]);
+  }, [canalId, subcanalId, hiloId, ruta]);
 
   // Si esta abajo me baja, si no me deja donde estaba
   useEffect(() => {
