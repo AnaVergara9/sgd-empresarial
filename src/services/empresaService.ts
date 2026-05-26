@@ -15,7 +15,7 @@ export const empresaService = {
       const usuarioRef = doc(db, "usuarios", userId);
       await updateDoc(usuarioRef, {
         empresa: empresaId,
-        nombreEmpresa: nombre // Guardamos el nombre comercial directo en el usuario
+        nombreEmpresa: nombre
       });
 
       return empresaId;

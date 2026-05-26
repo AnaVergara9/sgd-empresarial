@@ -70,7 +70,7 @@ export function useAutenticacion() {
   /**
    * Ahora esta función recibe la CEDULA y usa el servicio de validación
    */
-  const configurarPerfil = async (cedula: string, empresa: string, cargo: string, rol: "admin" | "empleado" = "empleado") => {
+  const configurarPerfil = async (cedula: string, empresa: string, nombreEmpresa: string, cargo: string, rol: "admin" | "empleado" = "empleado") => {
     if (!usuarioAuth) return;
 
     // Lógica de colores por rol
@@ -84,6 +84,7 @@ export function useAutenticacion() {
       rol: rol,
       email: usuarioAuth.email || "",
       empresa: empresa, // El slug para la URL
+      nombreEmpresa: nombreEmpresa, // Guardamos el nombre comercial directo en el usuario
       avatarColor: color,
       creadoEn: new Date(),
     };

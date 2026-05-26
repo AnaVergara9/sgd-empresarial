@@ -1,7 +1,7 @@
 "use client";
 
 import { useAutenticacion } from "@/hooks/useAuth";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useEffect } from "react";
 import Encabezado from "@/components/modules/Encabezado";
 import ColumnaCanales from "@/components/navigation/ColumnaCanales";
@@ -11,6 +11,9 @@ import { Canal } from "@/types";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { datosUsuario, logout, cargando } = useAutenticacion();
   const router = useRouter();
+  const params = useParams();
+
+  const canalIdActual = (params?.canalId as string) || "";
 
   useEffect(() => {
     if (!cargando && !datosUsuario) {
@@ -26,6 +29,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
+  const manejarSeleccionarCanal = (canal: Canal) => {
+    router.push(`/dashboard/${datosUsuario.empresa}/${canal.id}`);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-[#1e1f22] text-white overflow-hidden">
       {/* El Encabezado se queda fijo arriba */}
@@ -36,9 +43,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <ColumnaCanales
                   empresaId={datosUsuario.empresa}
                   esAdministrador={datosUsuario.rol === "admin"}
-                  alCrearCanal={(nombre) => crearCanal(nombre, datosUsuario.empresa)} canalId={""} alSeleccionarCanal={function (canal: Canal): void {
-                      throw new Error("Function not implemented.");
-                  } }        />
+                  alCrearCanal={(nombre) => crearCanal(nombre, datosUsuario.empresa)} 
+                  canalId={canalIdActual} 
+                  alSeleccionarCanal={manejarSeleccionarCanal}    />
 
         {/* Aquí es donde Next.js meterá los Subcanales, Hilos y el Chat */}
         <main className="flex flex-1 overflow-hidden">

@@ -43,7 +43,7 @@ export default function RegistroEmpresa() {
       if (!cedulaUsuario) throw new Error("Ingresa la cédula");
 
       // 1. Crear empresa
-      const empresaId = await empresaService.registrarNuevaEmpresa(nombreEmpresa, nitEmpresa,codigoGenerado);
+      const empresaId = await empresaService.registrarNuevaEmpresa(nombreEmpresa, nitEmpresa,codigoGenerado, usuarioAuth?.uid);
 
       // 2. Crear usuario ADMIN (usa tu hook)
       /*await authService.registrarNuevoUsuario({ 
@@ -56,7 +56,7 @@ export default function RegistroEmpresa() {
         email: usuarioAuth.email || "", 
         avatarColor: "", 
         creadoEn: undefined });*/
-      await configurarPerfil(cedulaUsuario, empresaId, cargoUsuario, "admin");
+      await configurarPerfil(cedulaUsuario, empresaId, nombreEmpresa, cargoUsuario, "admin");
 
       // 3. Ir al dashboard
       router.push(`/dashboard/${empresaId}`);

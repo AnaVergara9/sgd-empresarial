@@ -68,7 +68,7 @@ export default function UnirseEquipo() {
   const handleCompletarPerfil = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await configurarPerfil(cedula, empresaEncontrada.nombre, cargo);
+      await configurarPerfil(cedula, empresaEncontrada.id,empresaEncontrada.nombre, cargo, "empleado");
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message);
