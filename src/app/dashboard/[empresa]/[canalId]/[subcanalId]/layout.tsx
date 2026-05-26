@@ -1,14 +1,14 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useAutenticacion } from "@/hooks/useAuth";
 import ColumnaHilos from "@/components/navigation/Hilos"; // Asegúrate que la ruta sea correcta
 import { crearHilo } from "@/services/firestoreService";
-import router from "next/router";
 
 export default function SubcanalLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
   const { datosUsuario } = useAutenticacion();
+  const router = useRouter();
 
   // Sacamos todos los IDs necesarios de la URL
   const empresaId = params.empresa as string;
