@@ -10,6 +10,7 @@ export interface Usuario {
   nombreEmpresa: string
   email: string;
   avatarColor: string;
+  avatar?: string;
   creadoEn: any;
 }
 
