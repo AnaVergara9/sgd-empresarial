@@ -29,7 +29,7 @@ export default function ColumnaCanales({ canalId, alSeleccionarCanal, esAdminist
   }, [empresaId]);
 
   return (
-    <div className="w-60 flex-shrink-0 bg-[#2b2d31] flex flex-col border-r border-white/10 h-full">
+    <div className="w-52 flex-shrink-0 bg-[#2b2d31] flex flex-col border-r border-white/10 h-full">
       <div className="h-14 p-4 border-b border-white/10 flex items-center justify-between shrink-0">
         <h2 className="text-white font-semibold text-sm uppercase tracking-wide">CANALES</h2>
         {esAdministrador && (

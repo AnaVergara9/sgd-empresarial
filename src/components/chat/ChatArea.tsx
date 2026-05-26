@@ -127,7 +127,11 @@ export default function ChatArea({
     <div className="flex-1 flex flex-col bg-[#313338] h-full overflow-hidden">
       
       {/* SECCIÓN DE MENSAJES (Estilo Discord/WhatsApp) */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#0b141a] bg-opacity-95 relative"
+           style={{
+             backgroundImage: `radial-gradient(rgba(255,255,255,0.03) 1px, transparent 0)`,
+             backgroundSize: '24px 24px'
+           }}>
         {mensajes.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-zinc-500 text-sm">
             <span className="text-4xl mb-2">💬</span>

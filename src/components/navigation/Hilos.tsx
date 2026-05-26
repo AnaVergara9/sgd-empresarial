@@ -38,7 +38,7 @@ export default function ColumnaHilos({ canalId, subcanalId, hiloId, alSelecciona
   }, [empresaId, canalId, subcanalId]);
 
   return (
-    <div className="w-60 flex-shrink-0 bg-[#2b2d31] flex flex-col border-r border-white/10 h-full">
+    <div className="w-52 flex-shrink-0 bg-[#2b2d31] flex flex-col border-r border-white/10 h-full">
       <div className="h-14 p-4 border-b border-white/10 flex items-center justify-between shrink-0">
         <div>
           <h2 className="text-white font-semibold text-sm">HILOS</h2>
