@@ -1,8 +1,8 @@
 import { db } from "@/lib/firebase";
-import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
+import { collection, addDoc, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
 
 export const empresaService = {
-  registrarNuevaEmpresa: async (nombre: string, nit: string, codigo: string) => {
+  registrarNuevaEmpresa: async (nombre: string, nit: string, codigo: string, userId: string) => {
     try {
       const docRef = await addDoc(collection(db, "empresas"), {
         nombre,
@@ -10,7 +10,15 @@ export const empresaService = {
         codigoAcceso: codigo,
         createdAt: new Date(),
       });
-      return docRef.id;
+
+      const empresaId = docRef.id;
+      const usuarioRef = doc(db, "usuarios", userId);
+      await updateDoc(usuarioRef, {
+        empresa: empresaId,
+        nombreEmpresa: nombre // Guardamos el nombre comercial directo en el usuario
+      });
+
+      return empresaId;
     } catch (error) {
       throw error;
     }

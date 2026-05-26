@@ -7,6 +7,7 @@ export interface Usuario {
   cargo: string;
   rol: Rol;
   empresa: string;
+  nombreEmpresa: string
   email: string;
   avatarColor: string;
   creadoEn: any;
