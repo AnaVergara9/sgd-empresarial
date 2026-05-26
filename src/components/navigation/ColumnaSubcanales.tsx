@@ -27,7 +27,7 @@ export default function ColumnaSubcanales({ canalId, nombreCanal, subcanalId, al
       collection(db, "empresas", empresaId, "canales", canalId, "subcanales"),
       orderBy("creadoEn", "asc")
     );
-    
+
     const cancelarSuscripcion = onSnapshot(consulta, (resultado) => {
       setSubcanales(resultado.docs.map(documento => ({ id: documento.id, ...documento.data() } as Subcanal)));
       setCargando(false);
@@ -37,7 +37,7 @@ export default function ColumnaSubcanales({ canalId, nombreCanal, subcanalId, al
 
   return (
     <div className="w-60 flex-shrink-0 bg-[#2b2d31] flex flex-col border-r border-white/10 h-full">
-      <div className="p-4 border-b border-white/10 flex items-center justify-between">
+      <div className="h-14 p-4 border-b border-white/10 flex items-center justify-between">
         <div>
           <h2 className="text-white font-semibold text-sm">SUBCANALES</h2>
         </div>

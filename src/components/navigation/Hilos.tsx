@@ -13,30 +13,35 @@ interface PropiedadesColumnaHilos {
   esAdministrador: boolean;
   alCrearHilo: (nombre: string) => void;
   hiloActivo?: Hilo | null;
+  empresaId: string;
 }
 
-export default function ColumnaHilos({ canalId, subcanalId, hiloId, alSeleccionarHilo, esAdministrador, alCrearHilo, hiloActivo }: PropiedadesColumnaHilos) {
+export default function ColumnaHilos({ canalId, subcanalId, hiloId, alSeleccionarHilo, esAdministrador, alCrearHilo, hiloActivo, empresaId }: PropiedadesColumnaHilos) {
   const [hilos, setHilos] = useState<Hilo[]>([]);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
+
+    if (!empresaId || !canalId || !subcanalId) return;
+
+    // Ruta anidada exacta: empresas -> id -> canales -> id -> subcanales -> id -> hilos
     const consulta = query(
-      collection(db, `canales/${canalId}/subcanales/${subcanalId}/hilos`),
-      orderBy("creadoEn", "asc")
-    );
+    collection(db, "empresas", empresaId, "canales", canalId, "subcanales", subcanalId, "hilos"),
+    orderBy("creadoEn", "asc")
+  );
+
     const cancelarSuscripcion = onSnapshot(consulta, (resultado) => {
       setHilos(resultado.docs.map(documento => ({ id: documento.id, ...documento.data() } as Hilo)));
       setCargando(false);
     });
     return () => cancelarSuscripcion();
-  }, [canalId, subcanalId]);
+  }, [empresaId, canalId, subcanalId]);
 
   return (
     <div className="w-60 flex-shrink-0 bg-[#2b2d31] flex flex-col border-r border-white/10 h-full">
-      <div className="p-4 border-b border-white/10 flex items-center justify-between">
+      <div className="h-14 p-4 border-b border-white/10 flex items-center justify-between shrink-0">
         <div>
-          <p className="text-gray-400 text-xs uppercase tracking-wide">{subcanalId}</p>
-          <h2 className="text-white font-semibold text-sm">Hilos</h2>
+          <h2 className="text-white font-semibold text-sm">HILOS</h2>
         </div>
         {esAdministrador && (
           <button

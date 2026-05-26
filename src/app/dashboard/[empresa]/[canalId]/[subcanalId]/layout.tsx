@@ -23,6 +23,7 @@ export default function SubcanalLayout({ children }: { children: React.ReactNode
     <div className="flex flex-1 overflow-hidden">
       {/* 1. Columna 3 — Lista de Hilos */}
       <ColumnaHilos
+        empresaId={empresaId}
         canalId={canalId}
         subcanalId={subcanalId}
         esAdministrador={esAdministrador}
