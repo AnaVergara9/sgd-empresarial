@@ -29,7 +29,7 @@ export default function Encabezado({ datosUsuario, alCerrarSesion }: Propiedades
         <div className="flex flex-col">
           <span className="font-semibold text-sm leading-tight">{datosUsuario.nombre}</span>
           <span className="text-discord-muted text-[11px] leading-tight">{datosUsuario.cargo}</span>
-          <span className="text-discord-muted text-[11px] leading-tight">{datosUsuario.empresa}</span>
+          <span className="text-discord-muted text-[11px] leading-tight">{datosUsuario.nombreEmpresa || "Sin Empresa"}</span>
         </div>
       </div>
       

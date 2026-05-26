@@ -43,7 +43,7 @@ export default function EmpresaLayout({ children }: { children: React.ReactNode 
           // 2. Implementamos la navegación real:
           alSeleccionarCanal={(canal: Canal) => {
             router.push(`/dashboard/${empresaId}/${canal.id}`);
-          } } canalId={""}        />
+          } } canalId={params.canalId as string || ""}        />
 
         <main className="flex flex-1 overflow-hidden">
           {children}

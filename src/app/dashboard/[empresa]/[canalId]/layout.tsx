@@ -22,13 +22,14 @@ export default function CanalLayout({ children }: { children: React.ReactNode })
     <div className="flex flex-1 overflow-hidden">
       {/* Columna 2 — Lista de Subcanales */}
       <ColumnaSubcanales
+        empresaId={empresaId}
         canalId={canalId}
         esAdministrador={esAdministrador}
         alCrearSubcanal={(nombre) => crearSubcanal(nombre, empresaId, canalId)}
         // En lugar de un Error, ahora navegamos de verdad:
         alSeleccionarSubcanal={(subcanal: Subcanal) => {
           router.push(`/dashboard/${empresaId}/${canalId}/${subcanal.id}`);
-        } } subcanalId={""}        
+        } } subcanalId={params.subcanalId as string || ""}        
       />
 
       {/* Espacio para Hilos y ChatArea */}

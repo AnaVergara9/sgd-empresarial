@@ -7,13 +7,15 @@ import { Canal, Subcanal } from "@/types";
 
 interface PropiedadesColumnaSubcanales {
   canalId: string;
+  nombreCanal?: string;
   subcanalId: string;
   alSeleccionarSubcanal: (subcanal: Subcanal) => void;
   esAdministrador: boolean;
   alCrearSubcanal?: (nombre: string) => void;
+  empresaId: string;
 }
 
-export default function ColumnaSubcanales({ canalId, subcanalId, alSeleccionarSubcanal, esAdministrador, alCrearSubcanal }: PropiedadesColumnaSubcanales) {
+export default function ColumnaSubcanales({ canalId, nombreCanal, subcanalId, alSeleccionarSubcanal, esAdministrador, alCrearSubcanal, empresaId }: PropiedadesColumnaSubcanales) {
   const [subcanales, setSubcanales] = useState<Subcanal[]>([]);
   const [cargando, setCargando] = useState(true);
 
@@ -27,14 +29,14 @@ export default function ColumnaSubcanales({ canalId, subcanalId, alSeleccionarSu
       setCargando(false);
     });
     return () => cancelarSuscripcion();
-  }, [canalId]);
+  }, [canalId, empresaId]);
 
   return (
     <div className="w-60 flex-shrink-0 bg-[#2b2d31] flex flex-col border-r border-white/10 h-full">
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
         <div>
-          <p className="text-gray-400 text-xs uppercase tracking-wide">Canal</p>
-          <h2 className="text-white font-semibold text-sm">{canalId}</h2>
+          <p className="text-gray-400 text-xs uppercase tracking-wide">Subcanales</p>
+          <h2 className="text-white font-semibold text-sm">{nombreCanal || "Cargando..."}</h2>
         </div>
         {esAdministrador && (
           <button
