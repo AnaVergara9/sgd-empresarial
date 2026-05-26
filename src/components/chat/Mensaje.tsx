@@ -97,10 +97,10 @@ export default function Mensaje({ mensaje, ruta, datosUsuario, alResponder }: Pr
         {/* BURBUJA DEL CHAT (Estilo WhatsApp/Discord) */}
         <div className="relative group/bubble">
           
-          {/* Si el mensaje responde a otro (Cita) */}
+          {/* Si el mensaje responde a otro */}
           {mensaje.respondidoA && (
             <div className="bg-black/20 text-xs p-2 rounded-t-md border-l-4 border-indigo-500 text-zinc-400 mb-[-4px] italic max-w-xs truncate">
-              📌 {mensaje.respondidoA.autorNombre}: "{mensaje.respondidoA.texto}"
+              📌 {mensaje.respondidoA.autorNombre}: &quot;{mensaje.respondidoA.texto}&quot;
             </div>
           )}
 
