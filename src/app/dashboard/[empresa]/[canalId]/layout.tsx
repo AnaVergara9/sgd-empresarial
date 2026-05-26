@@ -20,7 +20,7 @@ export default function CanalLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      {/* Columna 2 — Lista de Subcanales */}
+      {/* Columna 2 — Lista de subcanales */}
       <ColumnaSubcanales
         empresaId={empresaId}
         canalId={canalId}

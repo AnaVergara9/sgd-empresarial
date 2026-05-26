@@ -35,8 +35,8 @@ export default function ColumnaSubcanales({ canalId, nombreCanal, subcanalId, al
     <div className="w-60 flex-shrink-0 bg-[#2b2d31] flex flex-col border-r border-white/10 h-full">
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
         <div>
-          <p className="text-gray-400 text-xs uppercase tracking-wide">Subcanales</p>
-          <h2 className="text-white font-semibold text-sm">{nombreCanal || "Cargando..."}</h2>
+          <p className="text-gray-400 text-xs uppercase tracking-wide">Canal seleccionado</p>
+          <h2 className="text-white font-semibold text-sm">Subcanales</h2>
         </div>
         {esAdministrador && (
           <button
