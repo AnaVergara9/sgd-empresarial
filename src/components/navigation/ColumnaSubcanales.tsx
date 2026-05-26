@@ -20,10 +20,14 @@ export default function ColumnaSubcanales({ canalId, nombreCanal, subcanalId, al
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
+
+    if (!empresaId || !canalId) return;
+    
     const consulta = query(
-      collection(db, `canales/${canalId}/subcanales`),
+      collection(db, "empresas", empresaId, "canales", canalId, "subcanales"),
       orderBy("creadoEn", "asc")
     );
+    
     const cancelarSuscripcion = onSnapshot(consulta, (resultado) => {
       setSubcanales(resultado.docs.map(documento => ({ id: documento.id, ...documento.data() } as Subcanal)));
       setCargando(false);
@@ -35,8 +39,7 @@ export default function ColumnaSubcanales({ canalId, nombreCanal, subcanalId, al
     <div className="w-60 flex-shrink-0 bg-[#2b2d31] flex flex-col border-r border-white/10 h-full">
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
         <div>
-          <p className="text-gray-400 text-xs uppercase tracking-wide">Canal seleccionado</p>
-          <h2 className="text-white font-semibold text-sm">Subcanales</h2>
+          <h2 className="text-white font-semibold text-sm">SUBCANALES</h2>
         </div>
         {esAdministrador && (
           <button

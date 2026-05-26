@@ -31,7 +31,7 @@ export default function ColumnaCanales({ canalId, alSeleccionarCanal, esAdminist
   return (
     <div className="w-60 flex-shrink-0 bg-[#2b2d31] flex flex-col border-r border-white/10 h-full">
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
-        <h2 className="text-white font-semibold text-sm uppercase tracking-wide">Canales</h2>
+        <h2 className="text-white font-semibold text-sm uppercase tracking-wide">CANALES</h2>
         {esAdministrador && (
           <button
             onClick={() => {
