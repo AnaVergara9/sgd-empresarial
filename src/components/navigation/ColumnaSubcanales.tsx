@@ -136,9 +136,6 @@ export default function ColumnaSubcanales({ canalId, nombreCanal, subcanalId, al
                 🗑️
               </button>
             )}
-            
-            <span className="text-gray-500">≡</span>
-            {subcanal.nombre}
           </button>
         ))}
       </div>
