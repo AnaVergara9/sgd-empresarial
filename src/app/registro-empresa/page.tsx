@@ -46,16 +46,19 @@ export default function RegistroEmpresa() {
       const empresaId = await empresaService.registrarNuevaEmpresa(nombreEmpresa, nitEmpresa,codigoGenerado, usuarioAuth?.uid);
 
       // 2. Crear usuario ADMIN (usa tu hook)
-      /*await authService.registrarNuevoUsuario({ 
+      await authService.registrarNuevoUsuario({ 
         uid: usuarioAuth.uid, 
         cedula: cedulaUsuario, 
         nombre: usuarioAuth.displayName || "", 
         cargo: cargoUsuario, 
         rol: "admin", 
         empresa: empresaId, 
+        nombreEmpresa: nombreEmpresa, 
         email: usuarioAuth.email || "", 
-        avatarColor: "", 
-        creadoEn: undefined });*/
+        avatarColor: "#5865f2",        
+        creadoEn: new Date()       
+      });
+
       await configurarPerfil(cedulaUsuario, empresaId, nombreEmpresa, cargoUsuario, "admin");
 
       // 3. Ir al dashboard

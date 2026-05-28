@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, doc,  deleteDoc } from "firebase/firestore";
 import { Canal, Subcanal, Hilo } from "@/types";
 
 interface PropiedadesColumnaHilos {
@@ -69,20 +69,44 @@ export default function ColumnaHilos({ canalId, subcanalId, hiloId, alSelecciona
         )}
 
         {hilos.map((hilo) => (
-          <button
-            key={hilo.id}
-            onClick={() => alSeleccionarHilo(hilo)}
-            className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-2 ${
-              hiloId === hilo.id || (hiloActivo && hiloActivo.id === hilo.id)
-                ? "bg-[#5865f2] text-white"
-                : "text-gray-400 hover:text-white hover:bg-white/5"
-            }`}
+          <div 
+            key={hilo.id} 
+            className="group/hilo flex items-center justify-between w-full rounded-md transition-colors hover:bg-white/5"
           >
-            <span className="text-gray-500">💬</span>
-            {hilo.nombre}
-          </button>
+            <button
+              onClick={() => alSeleccionarHilo(hilo)}
+              className={`flex-1 text-left px-3 py-2 text-sm flex items-center gap-2 ${
+                hiloId === hilo.id || (hiloActivo && hiloActivo.id === hilo.id)
+                  ? "bg-[#5865f2] text-white"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <span className="text-gray-500">💬</span>
+              <span>{hilo.nombre}</span>
+            </button>
+
+            {esAdministrador && (
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation(); // Evita que se abra el hilo al dar clic en la papelera
+                  if (confirm(`¿Estás seguro de que deseas eliminar el hilo "${hilo.nombre}"?`)) {
+                    try {
+                      const hiloRef = doc(db, "empresas", empresaId, "canales", canalId, "subcanales", subcanalId, "hilos", hilo.id);
+                      await deleteDoc(hiloRef);
+                    } catch (error) {
+                      console.error("Error al eliminar hilo:", error);
+                    }
+                  }
+                }}
+                className="opacity-0 group-hover/hilo:opacity-100 p-2 text-gray-400 hover:text-rose-500 transition-all text-xs mr-1"
+                title="Eliminar Hilo"
+              >
+                🗑️
+              </button>
+            )}
+          </div>
         ))}
-      </div>
     </div>
+  </div>
   );
 }
