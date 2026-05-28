@@ -79,7 +79,7 @@ export default function Mensaje({ mensaje, ruta, datosUsuario, alResponder }: Pr
     >
       {/* AVATAR: Círculo con iniciales usando su color aleatorio de Firestore */}
       <div 
-        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md shrink-0 uppercase"
+        className={"w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md shrink-0 uppercase"}
         style={{ backgroundColor: (mensaje as any).autorAvatarColor || "#5865f2" }}
       >
         {obtenerIniciales(mensaje.autorNombre)}

@@ -24,6 +24,7 @@ export function useAutenticacion() {
       setUsuarioAuth(usuario); // Guardamos la info básica del usuario (si hay)
       
       if (usuario) {
+        const docRef = doc(db, "usuarios", usuario.uid);
         // Si el usuario está conectado, vamos a Firestore a buscar sus datos adicionales
         const docUsuario = await getDoc(doc(db, "usuarios", usuario.uid));
         if (docUsuario.exists()) {
@@ -31,7 +32,16 @@ export function useAutenticacion() {
           setDatosUsuario(docUsuario.data() as Usuario);
         } else {
           // Si no existen datos guardados, avisamos que necesita configurar su perfil
-          setDatosUsuario(null); 
+          const usuarioInicial = {
+            uid: usuario.uid,
+            nombre: usuario.displayName || "Usuario",
+            email: usuario.email || "",
+            rol: "empleado", // Rol temporal inicial
+            creadoEn: new Date(),
+            estado: "activo"
+          };
+          await setDoc(docRef, usuarioInicial, { merge: true });
+          setDatosUsuario(usuarioInicial as unknown as Usuario);
         }
       } else {
         // Si el usuario no está conectado, borramos sus datos locales
