@@ -26,7 +26,7 @@ export const empresaService = {
 
   obtenerEmpresaPorCodigo: async (codigo: string) => {
     try {
-      const q = query(collection(db, "empresas"), where("codigoAcceso", "==", codigo));
+      const q = query(collection(db, "empresas"), where("codigoAcceso", "==", codigo.trim().toUpperCase()));
       const querySnapshot = await getDocs(q);
       
       if (querySnapshot.empty) {
