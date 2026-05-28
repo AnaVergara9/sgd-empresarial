@@ -112,10 +112,10 @@ export default function ColumnaSubcanales({ canalId, nombreCanal, subcanalId, al
         )}
 
         {subcanales.map((subcanal) => (
-          <button
+          <div
             key={subcanal.id}
             onClick={() => alSeleccionarSubcanal(subcanal)}
-            className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-2 ${
+            className={`group w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between cursor-pointer ${
               subcanalId === subcanal.id
                 ? "bg-[#5865f2] text-white"
                 : "text-gray-400 hover:text-white hover:bg-white/5"
@@ -126,17 +126,16 @@ export default function ColumnaSubcanales({ canalId, nombreCanal, subcanalId, al
               <span className="truncate">{subcanal.nombre}</span>
             </div>
 
-            {/* 🌟 BOTÓN DE ELIMINAR (Solo visible para admins y con efecto hover del grupo) */}
             {esAdministrador && (
               <button
                 onClick={(e) => handleEliminarSubcanal(e, subcanal)}
-                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-rose-500 transition-all p-1 text-xs"
+                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-rose-500 transition-all p-1 text-xs ml-2 flex-shrink-0"
                 title="Eliminar Subcanal"
               >
                 🗑️
               </button>
             )}
-          </button>
+          </div>
         ))}
       </div>
     </div>
