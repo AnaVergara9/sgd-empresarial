@@ -5,6 +5,8 @@ import { empresaService } from "@/services/empresaService";
 import { useAutenticacion } from "@/hooks/useAuth";
 import { authService } from "@/services/authService";
 import Image from "next/image";
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
 
 export default function UnirseEquipo() {
   const [paso, setPaso] = useState(1); // 1: Codigo, 2: Auth, 3: Perfil
@@ -32,17 +34,35 @@ export default function UnirseEquipo() {
     }
 
     try {
-      const empresa = await empresaService.obtenerEmpresaPorCodigo(codigo);
-      if (empresa) {
-        setEmpresaEncontrada(empresa);
-        setPaso(2);
-      } else {
-        setError("Código de empresa no válido.");
-      }
-    } catch (err) {
-      setError("Error al verificar el código.");
+    console.log("Buscando el código en Firestore:", codigo.trim().toUpperCase());
+    
+    // 1. Hacemos la consulta directa aquí mismo para asegurar los nombres
+    const empresasRef = collection(db, "empresas");
+    const q = query(empresasRef, where("codigoAcceso", "==", codigo.trim().toUpperCase()));
+    const querySnapshot = await getDocs(q);
+
+    console.log("¿Se encontró algo?", !querySnapshot.empty);
+
+    if (!querySnapshot.empty) {
+      const docEmpresa = querySnapshot.docs[0];
+      const datosEmpresa = {
+        id: docEmpresa.id,
+        ...docEmpresa.data()
+      };
+      
+      console.log("Datos de la empresa cargados:", datosEmpresa);
+      
+      setEmpresaEncontrada(datosEmpresa);
+      setPaso(2); // Avanza al paso de Google
+    } else {
+      setError("Código de empresa no válido.");
     }
-  };
+  } catch (err: any) {
+    // 🌟 ESTO IMPRIMIRÁ EL ERROR REAL EN TU CONSOLA
+    console.error("Fallo real al verificar el código:", err);
+    setError(`Error al verificar: ${err.message || "Problema de conexión"}`);
+  }
+};
 
   const handleGoogleLogin = async () => {
     setError("");
