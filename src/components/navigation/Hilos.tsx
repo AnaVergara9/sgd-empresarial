@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, orderBy, query, doc,  deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, doc,  deleteDoc, getDocs, QueryDocumentSnapshot } from "firebase/firestore";
 import { Canal, Subcanal, Hilo } from "@/types";
+import { useRouter } from "next/navigation";
 
 interface PropiedadesColumnaHilos {
   canalId: string;
@@ -19,6 +20,7 @@ interface PropiedadesColumnaHilos {
 export default function ColumnaHilos({ canalId, subcanalId, hiloId, alSeleccionarHilo, esAdministrador, alCrearHilo, hiloActivo, empresaId }: PropiedadesColumnaHilos) {
   const [hilos, setHilos] = useState<Hilo[]>([]);
   const [cargando, setCargando] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
 
@@ -92,9 +94,19 @@ export default function ColumnaHilos({ canalId, subcanalId, hiloId, alSelecciona
                   if (confirm(`¿Estás seguro de que deseas eliminar el hilo "${hilo.nombre}"?`)) {
                     try {
                       const hiloRef = doc(db, "empresas", empresaId, "canales", canalId, "subcanales", subcanalId, "hilos", hilo.id);
+
+                      const mensajesRef = collection(hiloRef, "mensajes");
+                      const mensajesSnapshot = await getDocs(mensajesRef);
+                      const promesasBorrado = mensajesSnapshot.docs.map((docMensaje: QueryDocumentSnapshot) => deleteDoc(docMensaje.ref));
+                      await Promise.all(promesasBorrado);
+
                       await deleteDoc(hiloRef);
+                      // Si el hilo que eliminamos es el que actualmente está seleccionado en la URL, redirigimos
+                      if (hiloId === hilo.id || (hiloActivo && hiloActivo.id === hilo.id)) {
+                        router.push(`/dashboard/${empresaId}/${canalId}/${subcanalId}`);
+                      }
                     } catch (error) {
-                      console.error("Error al eliminar hilo:", error);
+                      console.error("Error al eliminar hilo y sus mensajes:", error);
                     }
                   }
                 }}

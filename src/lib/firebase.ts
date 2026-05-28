@@ -14,13 +14,26 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Si ya hay app inicializada, la usamos; si no, creamos una nueva para evitar errores de "duplicate app" en Next.js durante el desarrollo (Hot Reload).
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+const esCliente = typeof window !== "undefined";
+const tieneApiKey = !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
-// Servicios a usar:
-const auth = getAuth(app); // Servicio de Autenticación
-const db = getFirestore(app); // Servicio de Base de Datos (Cloud Firestore)
+let app;
+let auth: any;
+let db: any;
 const googleProvider = new GoogleAuthProvider(); // Configuración para entrar con Google
+
+if (esCliente || tieneApiKey) {
+  // Si ya hay app inicializada, la usamos; si no, creamos una nueva para evitar errores de "duplicate app" en Next.js durante el desarrollo (Hot Reload).
+  app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+
+  // Servicios a usar (Inicializados de manera segura):
+  auth = getAuth(app); // Servicio de Autenticación
+  db = getFirestore(app); // Servicio de Base de Datos (Cloud Firestore)
+} else {
+  // Si no estamos en cliente o no tenemos la API key, asignamos objetos vacíos para evitar errores al importar este módulo en el servidor.
+  auth = {} as any;
+  db = {} as any;
+}
 
 // Servicios exportados para usarlos en otras partes de la app
 export { app, auth, db, googleProvider };

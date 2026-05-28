@@ -19,8 +19,8 @@ export default function UnirseEquipo() {
 
   // Si el usuario ya está autenticado y tiene datos, lo mandamos al dashboard
   useEffect(() => {
-    if (usuarioAuth && datosUsuario) {
-      router.push("/dashboard");
+    if (usuarioAuth && datosUsuario && datosUsuario.empresa) {
+      router.push(`/dashboard/${datosUsuario.empresa}`); // Te manda directo a SU empresa
     }
   }, [usuarioAuth, datosUsuario, router]);
 
@@ -45,14 +45,10 @@ export default function UnirseEquipo() {
   };
 
   const handleGoogleLogin = async () => {
+    setError("");
     try {
       await login();
-      // El useEffect se encargará de ver si el usuario ya existe
-      // Pero para forzar el paso si no existe:
-      const existe = await authService.checkUserExists(usuarioAuth?.uid || "");
-      if (!existe) {
-          setPaso(3);
-      }
+      // Quitamos la comprobación manual de authService que hacía romper el flujo
     } catch (err) {
       setError("Error al iniciar sesión con Google.");
     }
@@ -60,8 +56,15 @@ export default function UnirseEquipo() {
 
   // Efecto adicional para detectar cuando el usuario se loguea pero no tiene datos
   useEffect(() => {
-    if (usuarioAuth && !datosUsuario && paso === 2) {
-      setPaso(3);
+    if (usuarioAuth) {
+      if (datosUsuario && datosUsuario.cedula) {
+        // Si ya tiene cédula, ya está completo, el primer useEffect lo mandará al dashboard
+        return;
+      }
+      // Si está autenticado pero no tiene datos completos de empleado, al paso 3
+      if (paso === 2) {
+        setPaso(3);
+      }
     }
   }, [usuarioAuth, datosUsuario, paso]);
 
