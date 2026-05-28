@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, doc, getDocs, deleteDoc } from "firebase/firestore";
 import { Canal, Subcanal } from "@/types";
+import { useRouter } from "next/navigation";
 
 interface PropiedadesColumnaSubcanales {
   canalId: string;
@@ -18,6 +19,7 @@ interface PropiedadesColumnaSubcanales {
 export default function ColumnaSubcanales({ canalId, nombreCanal, subcanalId, alSeleccionarSubcanal, esAdministrador, alCrearSubcanal, empresaId }: PropiedadesColumnaSubcanales) {
   const [subcanales, setSubcanales] = useState<Subcanal[]>([]);
   const [cargando, setCargando] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
 
@@ -34,6 +36,49 @@ export default function ColumnaSubcanales({ canalId, nombreCanal, subcanalId, al
     });
     return () => cancelarSuscripcion();
   }, [canalId, empresaId]);
+
+  const handleEliminarSubcanal = async (e: React.MouseEvent, subcanal: Subcanal) => {
+    e.stopPropagation(); // Evita que se seleccione el subcanal al hacer clic en la papelera
+
+    if (!confirm(`¿Estás seguro de que deseas eliminar el subcanal "${subcanal.nombre}"? Se borrarán todos sus hilos y mensajes.`)) {
+      return;
+    }
+
+    try {
+      // 1. Referencia al documento del subcanal
+      const subcanalRef = doc(db, "empresas", empresaId, "canales", canalId, "subcanales", subcanal.id);
+
+      // 2. Traer y borrar todos los hilos que pertenezcan a este subcanal
+      const hilosRef = collection(subcanalRef, "hilos");
+      const hilosSnapshot = await getDocs(hilosRef);
+
+      const promesasHilos = hilosSnapshot.docs.map(async (hiloDoc) => {
+        // Por cada hilo, primero borramos sus mensajes internos
+        const mensajesRef = collection(hiloDoc.ref, "mensajes");
+        const mensajesSnapshot = await getDocs(mensajesRef);
+        const promesasMensajes = mensajesSnapshot.docs.map(msgDoc => deleteDoc(msgDoc.ref));
+        await Promise.all(promesasMensajes);
+
+        // Luego borramos el hilo en sí
+        return deleteDoc(hiloDoc.ref);
+      });
+
+      // Esperamos a que se limpien todos los sub-hilos y mensajes
+      await Promise.all(promesasHilos);
+
+      // 3. Finalmente, borramos el documento del subcanal
+      await deleteDoc(subcanalRef);
+
+      // 4. Si el subcanal eliminado era el activo, redirigimos al área general del canal
+      if (subcanalId === subcanal.id) {
+        router.push(`/dashboard/${empresaId}/${canalId}`);
+      }
+
+    } catch (error) {
+      console.error("Error al eliminar el subcanal en cascada:", error);
+      alert("No se pudo eliminar el subcanal debido a un problema de permisos.");
+    }
+  };
 
   return (
     <div className="w-52 flex-shrink-0 bg-[#2b2d31] flex flex-col border-r border-white/10 h-full">
@@ -76,6 +121,22 @@ export default function ColumnaSubcanales({ canalId, nombreCanal, subcanalId, al
                 : "text-gray-400 hover:text-white hover:bg-white/5"
             }`}
           >
+            <div className="flex items-center gap-2 overflow-hidden truncate">
+              <span className="text-gray-500 flex-shrink-0">≡</span>
+              <span className="truncate">{subcanal.nombre}</span>
+            </div>
+
+            {/* 🌟 BOTÓN DE ELIMINAR (Solo visible para admins y con efecto hover del grupo) */}
+            {esAdministrador && (
+              <button
+                onClick={(e) => handleEliminarSubcanal(e, subcanal)}
+                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-rose-500 transition-all p-1 text-xs"
+                title="Eliminar Subcanal"
+              >
+                🗑️
+              </button>
+            )}
+            
             <span className="text-gray-500">≡</span>
             {subcanal.nombre}
           </button>
