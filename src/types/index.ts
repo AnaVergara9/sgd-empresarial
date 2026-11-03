@@ -1,3 +1,5 @@
+import type { Timestamp } from "firebase/firestore";
+
 export type Rol = "admin" | "empleado";
 
 export interface Usuario {
@@ -47,9 +49,11 @@ export interface Mensaje {
   id: string;
   texto: string;
   autorId: string;
-  autorCedula: string;
+  autorCedula?: string;
   autorNombre: string;
-  fecha: any;
+  autorAvatar?: string;
+  autorAvatarColor?: string;
+  fecha: Timestamp | null; // null mientras el servidor confirma el serverTimestamp
   archivos: ArchivoAdjunto[];
   reacciones: Reacciones;
   respondidoA?: { autorNombre: string , texto: string;} | null;

@@ -4,9 +4,8 @@ export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { empresaService } from "@/services/empresaService";
-import { useAutenticacion } from "@/hooks/useAuth";
-import { authService } from "@/services/authService";
+import { registrarNuevaEmpresa } from "@/features/empresas/empresas.api";
+import { useAutenticacion } from "@/features/auth/useAutenticacion";
 
 export default function RegistroEmpresa() {
   const [paso, setPaso] = useState(1);
@@ -44,7 +43,7 @@ export default function RegistroEmpresa() {
       if (!cedulaUsuario) throw new Error("Ingresa la cédula");
 
       // 1. Crear empresa
-      const empresaId = await empresaService.registrarNuevaEmpresa(nombreEmpresa, nitEmpresa,codigoGenerado, usuarioAuth?.uid);
+      const empresaId = await registrarNuevaEmpresa(nombreEmpresa, nitEmpresa, codigoGenerado, usuarioAuth.uid);
 
 
       await configurarPerfil(cedulaUsuario, empresaId, nombreEmpresa, cargoUsuario, "admin");

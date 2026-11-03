@@ -2,24 +2,17 @@
 
 import { Usuario, Mensaje as TipoMensaje } from "@/types";
 import { useState, useEffect, useRef } from "react";
-import { db } from "@/lib/firebase";
-import {
-  collection,
-  onSnapshot,
-  orderBy,
-  addDoc,
-  serverTimestamp,
-  query,
-} from "firebase/firestore";
+import { rutaMensajes } from "@/features/canales/canales.api";
+import { enviarMensaje as enviarMensajeApi, escucharMensajes } from "../chat.api";
 
 import Mensaje from "./Mensaje";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/shared/ui/input";
+import { Button } from "@/shared/ui/button";
 
 interface Props {
   empresaId: string;
-  canalId: string | null;
-  subcanalId: string | null;
+  canalId: string;
+  subcanalId: string;
   hiloId: string;
   datosUsuario: Usuario;
 }
@@ -32,107 +25,66 @@ export default function ChatArea({
   datosUsuario,
 }: Props) {
   const [mensajes, setMensajes] = useState<TipoMensaje[]>([]);
+  const [errorCarga, setErrorCarga] = useState(false);
   const [texto, setTexto] = useState("");
   const [archivo, setArchivo] = useState<File | null>(null);
   const [mensajeCitado, setMensajeCitado] = useState<TipoMensaje | null>(null);
+  const [enviando, setEnviando] = useState(false);
 
   const finalRef = useRef<HTMLDivElement>(null);
 
-  // 🌟 CORRECCIÓN 1: Ruta anidada real incluyendo el empresaId para que Firestore conecte bien
-  const ruta = `empresas/${empresaId}/canales/${canalId}/subcanales/${subcanalId}/hilos/${hiloId}/mensajes`;
+  const ruta = rutaMensajes(empresaId, canalId, subcanalId, hiloId).join("/");
 
-  // Escuchar mensajes en tiempo real
+  // Escuchar los últimos mensajes en tiempo real
   useEffect(() => {
     if (!empresaId || !canalId || !subcanalId || !hiloId) return;
+    setErrorCarga(false);
 
-    const q = query(collection(db, ruta), orderBy("fecha", "asc"));
-
-    const unsub = onSnapshot(q, (snap) => {
-      const data = snap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as TipoMensaje[];
-
-      setMensajes(data);
+    return escucharMensajes(ruta, setMensajes, (error) => {
+      console.error("Error al cargar mensajes:", error);
+      setErrorCarga(true);
     });
-
-    return () => unsub();
   }, [empresaId, canalId, subcanalId, hiloId, ruta]);
 
-  // Autoscroll hacia abajo al recibir mensajes
+  // Autoscroll hacia abajo solo cuando llega un mensaje nuevo (no al reaccionar a uno viejo)
+  const ultimoId = mensajes[mensajes.length - 1]?.id;
   useEffect(() => {
     finalRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [mensajes]);
+  }, [ultimoId]);
 
   // Enviar mensaje
   const enviarMensaje = async () => {
-    if (!texto.trim() && !archivo) return;
+    if (enviando || (!texto.trim() && !archivo)) return;
 
-    let archivoSubido = null;
-
-    if (archivo) {
-      archivoSubido = await subirArchivo(archivo);
-    }
-
-    // 🌟 CORRECCIÓN 2: Ajustamos los campos para que Mensaje.tsx reciba los datos exactos
-    await addDoc(collection(db, ruta), {
-      texto,
-      autorId: datosUsuario.uid,
-      autorNombre: datosUsuario.nombre,
-      autorAvatar: datosUsuario.avatar || "", 
-      autorAvatarColor: datosUsuario.avatarColor || "#5865f2", // Pasamos el avatar del usuario actual
-      fecha: serverTimestamp(),
-      archivos: archivoSubido ? [archivoSubido] : [],
-      reacciones: {},
-      respondidoA: mensajeCitado
-        ? {
-            autorNombre: mensajeCitado.autorNombre,
-            texto: mensajeCitado.texto,
-          }
-        : null,
-    });
-
-    setTexto("");
-    setArchivo(null);
-    setMensajeCitado(null);
-  };
-
-  // Subir a Cloudinary
-  const subirArchivo = async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", "chat_upload");
-
+    setEnviando(true);
     try {
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-      const data = await res.json();
-      return {
-        url: data.secure_url,
-        nombre: file.name,
-        tipo: file.type,
-      };
+      await enviarMensajeApi(ruta, datosUsuario, texto, archivo, mensajeCitado);
+      setTexto("");
+      setArchivo(null);
+      setMensajeCitado(null);
     } catch (error) {
-      console.error("Error al subir archivo:", error);
-      return null;
+      // No limpiamos el texto para que el usuario pueda reintentar
+      console.error("Error al enviar mensaje:", error);
+      alert("No se pudo enviar el mensaje. Revisa tu conexión o el archivo adjunto e inténtalo de nuevo.");
+    } finally {
+      setEnviando(false);
     }
   };
 
   return (
     <div className="flex-1 flex flex-col bg-[#313338] h-full overflow-hidden">
-      
+
       {/* SECCIÓN DE MENSAJES (Estilo Discord/WhatsApp) */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#0b141a] bg-opacity-95 relative"
            style={{
              backgroundImage: `radial-gradient(rgba(255,255,255,0.03) 1px, transparent 0)`,
              backgroundSize: '24px 24px'
            }}>
-        {mensajes.length === 0 ? (
+        {errorCarga ? (
+          <div className="h-full flex items-center justify-center text-rose-400 text-sm">
+            <p>No se pudieron cargar los mensajes.</p>
+          </div>
+        ) : mensajes.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-zinc-500 text-sm">
             <span className="text-4xl mb-2">💬</span>
             <p>Este es el inicio de la conversación. ¡Escribe el primer mensaje!</p>
@@ -169,7 +121,7 @@ export default function ChatArea({
       {/* BARRA DE ENTRADA DE TEXTO (INPUT) */}
       <div className="p-4 bg-[#313338] border-t border-white/10">
         <div className="flex items-center gap-2 bg-[#383a40] rounded-lg px-3 py-1">
-          
+
           {/* Botón de archivo estilizado como un clip elegante */}
           <label className="cursor-pointer text-zinc-400 hover:text-zinc-200 transition-colors p-2">
             <span className="text-xl">📎</span>
@@ -190,11 +142,12 @@ export default function ChatArea({
           />
 
           {/* Botón enviar */}
-          <Button 
+          <Button
             onClick={enviarMensaje}
+            disabled={enviando}
             className="bg-[#5865f2] hover:bg-[#4752c4] text-white font-medium px-4 h-8 rounded transition-colors text-xs"
           >
-            Enviar
+            {enviando ? "Enviando..." : "Enviar"}
           </Button>
         </div>
       </div>
