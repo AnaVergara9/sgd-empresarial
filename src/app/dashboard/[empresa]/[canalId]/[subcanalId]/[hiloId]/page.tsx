@@ -1,12 +1,12 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useAutenticacion } from "@/hooks/useAuth";
-import ChatArea from "@/components/chat/ChatArea";
+import { useAuthContext } from "@/features/auth/AuthContext";
+import ChatArea from "@/features/chat/components/ChatArea";
 
 export default function ChatPage() {
   const params = useParams();
-  const { datosUsuario } = useAutenticacion();
+  const { datosUsuario } = useAuthContext();
 
   if (!datosUsuario) return null;
 

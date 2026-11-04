@@ -3,14 +3,15 @@ export const dynamic = "force-dynamic";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { useAutenticacion } from "@/hooks/useAuth";
+import { useAutenticacion } from "@/features/auth/useAutenticacion";
 
 export default function LoginPage() {
   const { login, usuarioAuth, datosUsuario, cargando } = useAutenticacion();
   const router = useRouter();
 
   useEffect(() => {
-    if (usuarioAuth && datosUsuario) {
+    // Solo entra al dashboard si ya completó el registro (tiene empresa)
+    if (usuarioAuth && datosUsuario?.empresa) {
       router.push("/dashboard");
     }
   }, [usuarioAuth, datosUsuario, router]);
@@ -49,7 +50,7 @@ export default function LoginPage() {
           Ingresar con Google
         </button>
         
-        {usuarioAuth && !datosUsuario && (
+        {usuarioAuth && !datosUsuario?.empresa && (
           <div className="mt-6 p-4 bg-amber-50 text-amber-700 rounded-xl text-sm border border-amber-100">
             Parece que no has completado tu registro. Por favor, vuelve a la página principal y selecciona &quot;Soy Empleado&quot; o &quot;Soy Empresa&quot; según corresponda.
           </div>

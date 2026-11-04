@@ -1,7 +1,7 @@
 // Importamos las funciones necesarias del SDK de Firebase (versión 9+)
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, Auth } from "firebase/auth";
+import { getFirestore, Firestore } from "firebase/firestore";
 
 
 //variables de entorno deben de Firebase.
@@ -17,9 +17,9 @@ const firebaseConfig = {
 const esCliente = typeof window !== "undefined";
 const tieneApiKey = !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
-let app;
-let auth: any;
-let db: any;
+let app: FirebaseApp | undefined;
+let auth: Auth;
+let db: Firestore;
 const googleProvider = new GoogleAuthProvider(); // Configuración para entrar con Google
 
 if (esCliente || tieneApiKey) {
@@ -31,8 +31,8 @@ if (esCliente || tieneApiKey) {
   db = getFirestore(app); // Servicio de Base de Datos (Cloud Firestore)
 } else {
   // Si no estamos en cliente o no tenemos la API key, asignamos objetos vacíos para evitar errores al importar este módulo en el servidor.
-  auth = {} as any;
-  db = {} as any;
+  auth = {} as Auth;
+  db = {} as Firestore;
 }
 
 // Servicios exportados para usarlos en otras partes de la app

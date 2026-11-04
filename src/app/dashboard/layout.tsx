@@ -1,37 +1,42 @@
 "use client";
 
-import { useAutenticacion } from "@/hooks/useAuth";
+import { AuthProvider, useAuthContext } from "@/features/auth/AuthContext";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect } from "react";
-import Encabezado from "@/components/modules/Encabezado";
-import ColumnaCanales from "@/components/navigation/ColumnaCanales";
-import { crearCanal } from "@/services/firestoreService";
-import { Canal } from "@/types";
+import Encabezado from "@/features/auth/components/Encabezado";
+import ColumnaCanales from "@/features/canales/components/ColumnaCanales";
 
+// El layout principal carga la sesión una sola vez y la comparte con todo el dashboard
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { datosUsuario, logout, cargando } = useAutenticacion();
+  return (
+    <AuthProvider>
+      <DashboardContenido>{children}</DashboardContenido>
+    </AuthProvider>
+  );
+}
+
+function DashboardContenido({ children }: { children: React.ReactNode }) {
+  const { datosUsuario, logout, cargando } = useAuthContext();
   const router = useRouter();
   const params = useParams();
 
   const canalIdActual = (params?.canalId as string) || "";
+  // Un usuario sin empresa todavía no completó su registro y no puede entrar al dashboard
+  const registroCompleto = !!datosUsuario?.empresa;
 
   useEffect(() => {
-    if (!cargando && !datosUsuario) {
+    if (!cargando && !registroCompleto) {
       router.push("/login");
     }
-  }, [datosUsuario, cargando, router]);
+  }, [registroCompleto, cargando, router]);
 
-  if (cargando || !datosUsuario) {
+  if (cargando || !datosUsuario || !registroCompleto) {
     return (
       <div className="min-h-screen bg-[#1e1f22] flex items-center justify-center text-white">
         <p className="animate-pulse">Cargando...</p>
       </div>
     );
   }
-
-  const manejarSeleccionarCanal = (canal: Canal) => {
-    router.push(`/dashboard/${datosUsuario.empresa}/${canal.id}`);
-  };
 
   return (
     <div className="flex flex-col h-screen bg-[#1e1f22] text-white overflow-hidden">
@@ -41,11 +46,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex flex-1 overflow-hidden">
         {/* La Columna de Canales se queda fija a la izquierda */}
         <ColumnaCanales
-                  empresaId={datosUsuario.empresa}
-                  esAdministrador={datosUsuario.rol === "admin"}
-                  alCrearCanal={(nombre) => crearCanal(nombre, datosUsuario.empresa)} 
-                  canalId={canalIdActual} 
-                  alSeleccionarCanal={manejarSeleccionarCanal}    />
+          empresaId={datosUsuario.empresa}
+          esAdministrador={datosUsuario.rol === "admin"}
+          canalId={canalIdActual}
+        />
 
         {/* Aquí es donde Next.js meterá los Subcanales, Hilos y el Chat */}
         <main className="flex flex-1 overflow-hidden">
