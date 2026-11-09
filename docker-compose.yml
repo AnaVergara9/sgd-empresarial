@@ -1,0 +1,134 @@
+services:
+  # ---------- Bases de datos ----------
+  auth-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: auth_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  empresa-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: empresa_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - empresa_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d empresa_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  canales-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: canales_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - canales_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d canales_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  chat-db:
+    image: mongo:7
+    ports:
+      - "27018:27017"
+    volumes:
+      - chat_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---------- Microservicios ----------
+  auth-service:
+    build: ./services/auth-service
+    environment:
+      PORT: "4001"
+      DATABASE_URL: postgres://postgres:postgres@auth-db:5432/auth_db
+    depends_on:
+      auth-db:
+        condition: service_healthy
+
+  empresa-service:
+    build: ./services/empresa-service
+    environment:
+      PORT: "4002"
+      DATABASE_URL: postgres://postgres:postgres@empresa-db:5432/empresa_db
+    depends_on:
+      empresa-db:
+        condition: service_healthy
+
+  canales-service:
+    build: ./services/canales-service
+    environment:
+      PORT: "4003"
+      DATABASE_URL: postgres://postgres:postgres@canales-db:5432/canales_db
+    depends_on:
+      canales-db:
+        condition: service_healthy
+
+  chat-service:
+    build: ./services/chat-service
+    environment:
+      PORT: "4004"
+      MONGO_URL: mongodb://chat-db:27017/chat_db
+    depends_on:
+      chat-db:
+        condition: service_healthy
+
+  archivos-service:
+    build: ./services/archivos-service
+    environment:
+      PORT: "4005"
+      URL_PUBLICA: http://localhost:4000
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_UPLOAD_PRESET: ${CLOUDINARY_UPLOAD_PRESET:-chat_upload}
+    volumes:
+      - archivos_data:/app/uploads
+
+  # ---------- Puerta de entrada ----------
+  gateway:
+    build: ./gateway
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: "4000"
+      AUTH_URL: http://auth-service:4001
+      EMPRESA_URL: http://empresa-service:4002
+      CANALES_URL: http://canales-service:4003
+      CHAT_URL: http://chat-service:4004
+      ARCHIVOS_URL: http://archivos-service:4005
+    depends_on:
+      - auth-service
+      - empresa-service
+      - canales-service
+      - chat-service
+      - archivos-service
+
+volumes:
+  auth_data:
+  empresa_data:
+  canales_data:
+  chat_data:
+  archivos_data:
