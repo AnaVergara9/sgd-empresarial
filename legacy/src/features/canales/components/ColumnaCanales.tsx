@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Canal } from "@/types";
-import { useColeccion } from "@/shared/firestore";
+import { useListaApi } from "../useListaApi";
 import { crear, eliminarCanal, rutaCanales } from "../canales.api";
 import ColumnaNavegacion from "./ColumnaNavegacion";
 
@@ -14,7 +14,7 @@ interface PropiedadesColumnaCanales {
 
 export default function ColumnaCanales({ empresaId, canalId, esAdministrador }: PropiedadesColumnaCanales) {
   const router = useRouter();
-  const { datos, cargando, error } = useColeccion<Canal>(empresaId ? rutaCanales(empresaId) : null);
+  const { datos, cargando, error, recargar } = useListaApi<Canal>(empresaId ? rutaCanales(empresaId) : null);
 
   return (
     <ColumnaNavegacion
@@ -28,9 +28,13 @@ export default function ColumnaCanales({ empresaId, canalId, esAdministrador }: 
       idActivo={canalId}
       esAdministrador={esAdministrador}
       alSeleccionar={(canal) => router.push(`/dashboard/${empresaId}/${canal.id}`)}
-      alCrear={(nombre) => crear(rutaCanales(empresaId), nombre)}
+      alCrear={async (nombre) => {
+        await crear(rutaCanales(empresaId), nombre);
+        await recargar();
+      }}
       alEliminar={async (canal) => {
         await eliminarCanal(empresaId, canal.id);
+        await recargar();
         // Si el canal eliminado era el que estaba abierto, salimos de él
         if (canal.id === canalId) router.push(`/dashboard/${empresaId}`);
       }}

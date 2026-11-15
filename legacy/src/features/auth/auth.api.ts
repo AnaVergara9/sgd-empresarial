@@ -1,7 +1,31 @@
-import { auth, db, googleProvider } from "@/shared/firebase";
-import { doc, getDoc, setDoc, serverTimestamp, runTransaction } from "firebase/firestore";
+import { auth, googleProvider } from "@/shared/firebase";
 import { onAuthStateChanged, signInWithPopup, signOut, User } from "firebase/auth";
 import { Rol, Usuario } from "@/types";
+
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+async function pedir<T = any>(url: string, opciones?: RequestInit): Promise<T> {
+  const res = await fetch(`${API}${url}`, {
+    headers: { "Content-Type": "application/json" },
+    ...opciones,
+  });
+  const datos = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(datos.error || "Error en la petición");
+  return datos;
+}
+
+// El backend devuelve snake_case y valores null; los componentes esperan los nombres de antes.
+function adaptarUsuario(fila: any): Usuario {
+  return {
+    ...fila,
+    empresa: fila.empresa_id ?? undefined,
+    nombreEmpresa: fila.nombre_empresa ?? undefined,
+    avatarColor: fila.avatar_color ?? undefined,
+    creadoEn: fila.creado_en,
+    cedula: fila.cedula ?? undefined,
+    cargo: fila.cargo ?? undefined,
+  } as unknown as Usuario;
+}
 
 // Escucha cuando alguien entra o sale. Devuelve la función para cancelar la suscripción.
 export function escucharSesion(alCambiar: (usuario: User | null) => void) {
@@ -9,63 +33,43 @@ export function escucharSesion(alCambiar: (usuario: User | null) => void) {
 }
 
 /**
- * Trae los datos del usuario desde Firestore.
- * Si es la primera vez que entra, crea un documento inicial (todavía sin empresa).
+ * Trae los datos del usuario desde el backend.
+ * Si es la primera vez que entra, el backend crea el registro inicial (todavía sin empresa).
  */
 export async function obtenerOCrearUsuario(usuario: User): Promise<Usuario> {
-  const docRef = doc(db, "usuarios", usuario.uid);
-  const docUsuario = await getDoc(docRef);
-  if (docUsuario.exists()) {
-    return docUsuario.data() as Usuario;
-  }
-
-  const usuarioInicial = {
-    uid: usuario.uid,
-    nombre: usuario.displayName || "Usuario",
-    email: usuario.email || "",
-    rol: "empleado", // Rol temporal inicial
-    creadoEn: serverTimestamp(),
-    estado: "activo",
-  };
-  await setDoc(docRef, usuarioInicial, { merge: true });
-  return usuarioInicial as unknown as Usuario;
+  const fila = await pedir("/auth/sesion", {
+    method: "POST",
+    body: JSON.stringify({
+      uid: usuario.uid,
+      nombre: usuario.displayName || "Usuario",
+      email: usuario.email || "",
+    }),
+  });
+  return adaptarUsuario(fila);
 }
 
 /**
- * Registra el perfil completo del usuario validando que la cédula no exista.
- * Se hace en una transacción para que dos registros simultáneos con la misma cédula no pasen ambos.
+ * Registra el perfil completo del usuario. El backend valida que la cédula no esté repetida.
  */
 export async function registrarNuevoUsuario(
   usuarioAuth: User,
   datos: { cedula: string; empresa: string; nombreEmpresa: string; cargo: string; rol: Rol }
 ): Promise<Usuario> {
-  const nuevoUsuario: Usuario = {
-    uid: usuarioAuth.uid,
-    cedula: datos.cedula,
-    nombre: usuarioAuth.displayName || "Usuario",
-    cargo: datos.cargo,
-    rol: datos.rol,
-    email: usuarioAuth.email || "",
-    empresa: datos.empresa, // El id de la empresa (se usa en la URL)
-    nombreEmpresa: datos.nombreEmpresa, // Nombre comercial guardado directo en el usuario
-    avatarColor: datos.rol === "admin" ? "#5865F2" : "#43b581", // Color por rol
-    creadoEn: serverTimestamp(),
-  };
+  // Se asegura de que el usuario exista en el backend antes de completar el perfil
+  await obtenerOCrearUsuario(usuarioAuth);
 
-  await runTransaction(db, async (transaccion) => {
-    const rutaCedula = doc(db, "cedulas_registradas", datos.cedula);
-    const informacionCedula = await transaccion.get(rutaCedula);
-
-    // Si la cédula ya es de este mismo usuario (reintento), se permite continuar
-    if (informacionCedula.exists() && informacionCedula.data().uid !== usuarioAuth.uid) {
-      throw new Error("Esta cédula ya está registrada en el sistema.");
-    }
-
-    transaccion.set(rutaCedula, { uid: usuarioAuth.uid });
-    transaccion.set(doc(db, "usuarios", usuarioAuth.uid), { ...nuevoUsuario, estado: "activo" });
+  const fila = await pedir("/auth/perfil", {
+    method: "PUT",
+    body: JSON.stringify({
+      uid: usuarioAuth.uid,
+      cedula: datos.cedula,
+      cargo: datos.cargo,
+      rol: datos.rol,
+      empresaId: datos.empresa,
+      nombreEmpresa: datos.nombreEmpresa,
+    }),
   });
-
-  return nuevoUsuario;
+  return adaptarUsuario(fila);
 }
 
 export async function iniciarSesionConGoogle() {

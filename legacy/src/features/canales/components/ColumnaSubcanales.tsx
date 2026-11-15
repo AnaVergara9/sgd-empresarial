@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Subcanal } from "@/types";
-import { useColeccion } from "@/shared/firestore";
+import { useListaApi } from "../useListaApi";
 import { crear, eliminarSubcanal, rutaSubcanales } from "../canales.api";
 import ColumnaNavegacion from "./ColumnaNavegacion";
 
@@ -16,7 +16,7 @@ interface PropiedadesColumnaSubcanales {
 export default function ColumnaSubcanales({ empresaId, canalId, subcanalId, esAdministrador }: PropiedadesColumnaSubcanales) {
   const router = useRouter();
   const ruta = empresaId && canalId ? rutaSubcanales(empresaId, canalId) : null;
-  const { datos, cargando, error } = useColeccion<Subcanal>(ruta);
+  const { datos, cargando, error, recargar } = useListaApi<Subcanal>(ruta);
 
   return (
     <ColumnaNavegacion
@@ -30,9 +30,13 @@ export default function ColumnaSubcanales({ empresaId, canalId, subcanalId, esAd
       idActivo={subcanalId}
       esAdministrador={esAdministrador}
       alSeleccionar={(subcanal) => router.push(`/dashboard/${empresaId}/${canalId}/${subcanal.id}`)}
-      alCrear={(nombre) => crear(rutaSubcanales(empresaId, canalId), nombre)}
+      alCrear={async (nombre) => {
+        await crear(rutaSubcanales(empresaId, canalId), nombre);
+        await recargar();
+      }}
       alEliminar={async (subcanal) => {
         await eliminarSubcanal(empresaId, canalId, subcanal.id);
+        await recargar();
         // Si el subcanal eliminado era el activo, redirigimos al área general del canal
         if (subcanal.id === subcanalId) router.push(`/dashboard/${empresaId}/${canalId}`);
       }}

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Hilo } from "@/types";
-import { useColeccion } from "@/shared/firestore";
+import { useListaApi } from "../useListaApi";
 import { crear, eliminarHilo, rutaHilos } from "../canales.api";
 import ColumnaNavegacion from "./ColumnaNavegacion";
 
@@ -17,7 +17,7 @@ interface PropiedadesColumnaHilos {
 export default function ColumnaHilos({ empresaId, canalId, subcanalId, hiloId, esAdministrador }: PropiedadesColumnaHilos) {
   const router = useRouter();
   const ruta = empresaId && canalId && subcanalId ? rutaHilos(empresaId, canalId, subcanalId) : null;
-  const { datos, cargando, error } = useColeccion<Hilo>(ruta);
+  const { datos, cargando, error, recargar } = useListaApi<Hilo>(ruta);
   const rutaSubcanal = `/dashboard/${empresaId}/${canalId}/${subcanalId}`;
 
   return (
@@ -32,9 +32,13 @@ export default function ColumnaHilos({ empresaId, canalId, subcanalId, hiloId, e
       idActivo={hiloId}
       esAdministrador={esAdministrador}
       alSeleccionar={(hilo) => router.push(`${rutaSubcanal}/${hilo.id}`)}
-      alCrear={(nombre) => crear(rutaHilos(empresaId, canalId, subcanalId), nombre)}
+      alCrear={async (nombre) => {
+        await crear(rutaHilos(empresaId, canalId, subcanalId), nombre);
+        await recargar();
+      }}
       alEliminar={async (hilo) => {
         await eliminarHilo(empresaId, canalId, subcanalId, hilo.id);
+        await recargar();
         // Si el hilo eliminado es el que está abierto, volvemos al subcanal
         if (hilo.id === hiloId) router.push(rutaSubcanal);
       }}
