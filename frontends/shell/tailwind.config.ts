@@ -4,8 +4,9 @@ import animate from "tailwindcss-animate";
 const config: Config = {
     darkMode: ["class"],
     content: [
-    "./index.html", 
-    "./src/**/*.{ts,tsx}"
+    "./index.html",
+    "./src/**/*.{ts,tsx}",
+    "../mf-navegacion/src/**/*.{ts,tsx}"
   ],
   theme: {
   	extend: {

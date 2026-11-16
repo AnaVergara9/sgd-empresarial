@@ -15,7 +15,11 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/registro-empresa" element={<RegistroEmpresa />} />
         <Route path="/unirse" element={<Unirse />} />
-        <Route path="/dashboard/*" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard/:empresa" element={<Dashboard />} />
+        <Route path="/dashboard/:empresa/:canalId" element={<Dashboard />} />
+        <Route path="/dashboard/:empresa/:canalId/:subcanalId" element={<Dashboard />} />
+        <Route path="/dashboard/:empresa/:canalId/:subcanalId/:hiloId" element={<Dashboard />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>

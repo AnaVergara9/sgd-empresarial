@@ -1,12 +1,17 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useAuthContext } from "@/features/auth/AuthContext";
 import Encabezado from "@/features/auth/components/Encabezado";
 
-// Provisional: aquí se montarán mf-navegacion y mf-chat
+// Se descargan desde mf-navegacion (puerto 5174) cuando hacen falta
+const ColumnaCanales = lazy(() => import("mf_navegacion/ColumnaCanales"));
+const ColumnaSubcanales = lazy(() => import("mf_navegacion/ColumnaSubcanales"));
+const ColumnaHilos = lazy(() => import("mf_navegacion/ColumnaHilos"));
+
 export default function Dashboard() {
   const { datosUsuario, logout, cargando } = useAuthContext();
   const navigate = useNavigate();
+  const { canalId = "", subcanalId = "", hiloId } = useParams();
   const registroCompleto = !!datosUsuario?.empresa;
 
   useEffect(() => {
@@ -21,12 +26,46 @@ export default function Dashboard() {
     );
   }
 
+  const empresaId = datosUsuario.empresa as string;
+  const esAdministrador = datosUsuario.rol === "admin";
+
   return (
     <div className="flex flex-col h-screen bg-[#1e1f22] text-white overflow-hidden">
       <Encabezado datosUsuario={datosUsuario} alCerrarSesion={logout} />
-      <main className="flex flex-1 items-center justify-center text-slate-400">
-        Aquí irán la navegación y el chat (microfrontends)
-      </main>
+
+      <div className="flex flex-1 overflow-hidden">
+        <Suspense fallback={<p className="p-4 text-slate-400">Cargando navegación...</p>}>
+          <ColumnaCanales
+            empresaId={empresaId}
+            canalId={canalId}
+            esAdministrador={esAdministrador}
+            alNavegar={navigate}
+          />
+          {canalId && (
+            <ColumnaSubcanales
+              empresaId={empresaId}
+              canalId={canalId}
+              subcanalId={subcanalId}
+              esAdministrador={esAdministrador}
+              alNavegar={navigate}
+            />
+          )}
+          {canalId && subcanalId && (
+            <ColumnaHilos
+              empresaId={empresaId}
+              canalId={canalId}
+              subcanalId={subcanalId}
+              hiloId={hiloId}
+              esAdministrador={esAdministrador}
+              alNavegar={navigate}
+            />
+          )}
+        </Suspense>
+
+        <main className="flex flex-1 items-center justify-center text-slate-400">
+          {hiloId ? "Aquí irá el chat (mf-chat)" : "Selecciona un hilo"}
+        </main>
+      </div>
     </div>
   );
 }
