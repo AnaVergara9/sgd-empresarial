@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Esto asegura que el fondo sea oscuro desde el primer segundo */
+body {
+  background-color: #1e1f22;
+  margin: 0;
+  color: white;
+}
