@@ -33,3 +33,16 @@ declare module "mf_navegacion/ColumnaHilos" {
   }>;
   export default C;
 }
+
+declare module "mf_chat/ChatArea" {
+  import type { ComponentType } from "react";
+  import type { Usuario } from "@/types";
+  const C: ComponentType<{
+    empresaId: string;
+    canalId: string;
+    subcanalId: string;
+    hiloId: string;
+    datosUsuario: Usuario;
+  }>;
+  export default C;
+}

@@ -10,6 +10,11 @@ export default defineConfig({
       dts: false,
       name: "shell",
       remotes: {
+        mf_chat: {
+          type: "module",
+          name: "mf_chat",
+          entry: "http://localhost:5175/remoteEntry.js",
+        },
         mf_navegacion: {
           type: "module",
           name: "mf_navegacion",

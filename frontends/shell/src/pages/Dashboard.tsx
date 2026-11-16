@@ -7,6 +7,7 @@ import Encabezado from "@/features/auth/components/Encabezado";
 const ColumnaCanales = lazy(() => import("mf_navegacion/ColumnaCanales"));
 const ColumnaSubcanales = lazy(() => import("mf_navegacion/ColumnaSubcanales"));
 const ColumnaHilos = lazy(() => import("mf_navegacion/ColumnaHilos"));
+const ChatArea = lazy(() => import("mf_chat/ChatArea"));
 
 export default function Dashboard() {
   const { datosUsuario, logout, cargando } = useAuthContext();
@@ -62,8 +63,20 @@ export default function Dashboard() {
           )}
         </Suspense>
 
-        <main className="flex flex-1 items-center justify-center text-slate-400">
-          {hiloId ? "Aquí irá el chat (mf-chat)" : "Selecciona un hilo"}
+        <main className="flex flex-1 overflow-hidden">
+          {hiloId ? (
+            <Suspense fallback={<p className="p-4 text-slate-400">Cargando chat...</p>}>
+              <ChatArea
+                empresaId={empresaId}
+                canalId={canalId}
+                subcanalId={subcanalId}
+                hiloId={hiloId}
+                datosUsuario={datosUsuario}
+              />
+            </Suspense>
+          ) : (
+            <p className="m-auto text-slate-400">Selecciona un hilo</p>
+          )}
         </main>
       </div>
     </div>
