@@ -60,6 +60,43 @@ services:
       timeout: 5s
       retries: 10
 
+  mf-navegacion:
+    build:
+      context: ./frontends/mf-navegacion
+      args:
+        VITE_API_URL: http://localhost:4000
+    ports:
+      - "5174:80"
+
+  mf-chat:
+    build:
+      context: ./frontends/mf-chat
+      args:
+        VITE_API_URL: http://localhost:4000
+        VITE_CLOUDINARY_CLOUD_NAME: ${VITE_CLOUDINARY_CLOUD_NAME}
+    ports:
+      - "5175:80"
+
+  shell:
+    build:
+      context: ./frontends
+      dockerfile: shell/Dockerfile
+      args:
+        VITE_API_URL: http://localhost:4000
+        VITE_MF_NAVEGACION_URL: http://localhost:5174
+        VITE_MF_CHAT_URL: http://localhost:5175
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
+    ports:
+      - "5173:80"
+    depends_on:
+      - mf-navegacion
+      - mf-chat
+
   # ---------- Microservicios ----------
   auth-service:
     build: ./services/auth-service
