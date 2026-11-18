@@ -1,37 +1,64 @@
+
 import { ArchivoAdjunto, Mensaje, Usuario } from "@/types";
+import { io } from "socket.io-client";
 
+// API REST: continúa pasando por el Gateway.
 const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
-const INTERVALO_MS = 3000; // cada cuánto se piden mensajes nuevos (temporal, hasta tener Socket.io)
-const EVENTO_REFRESCAR = "chat:refrescar";
 
-// Ruta de los mensajes de un hilo. Se usa para identificar el hilo (el id es el penúltimo elemento).
-export const rutaMensajes = (empresaId: string, canalId: string, subcanalId: string, hiloId: string) =>
-  ["empresas", empresaId, "canales", canalId, "subcanales", subcanalId, "hilos", hiloId, "mensajes"].join("/");
+// Socket.IO: conexión directa al chat-service durante desarrollo local.
+// Cuando agreguemos NGINX cambiaremos esta dirección.
+const SOCKET_URL =
+  import.meta.env.VITE_SOCKET_URL || "http://localhost:4004";
 
-async function pedir<T = any>(url: string, opciones?: RequestInit): Promise<T> {
+// Construye la ruta de mensajes de un hilo.
+export const rutaMensajes = (
+  empresaId: string,
+  canalId: string,
+  subcanalId: string,
+  hiloId: string
+) =>
+  [
+    "empresas",
+    empresaId,
+    "canales",
+    canalId,
+    "subcanales",
+    subcanalId,
+    "hilos",
+    hiloId,
+    "mensajes",
+  ].join("/");
+
+async function pedir<T = any>(
+  url: string,
+  opciones?: RequestInit
+): Promise<T> {
   const res = await fetch(`${API}${url}`, {
     headers: { "Content-Type": "application/json" },
     ...opciones,
   });
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || "Error en la petición");
   }
+
   return res.json();
 }
 
-// La ruta tiene la forma .../hilos/{hiloId}/mensajes, el id del hilo es el penúltimo elemento
+// Extrae el identificador del hilo de la ruta.
 const hiloIdDeRuta = (ruta: string) => {
   const partes = ruta.split("/");
   return partes[partes.length - 2];
 };
 
-// Mongo devuelve _id y la fecha como texto. Se adapta a lo que esperan los componentes.
+// Adapta los documentos de MongoDB al formato que utiliza React.
 function adaptarMensaje(m: any): Mensaje {
   const fecha = new Date(m.fecha);
+
   return {
     ...m,
-    id: m._id,
+    id: m.id || m._id,
     fecha: {
       toDate: () => fecha,
       toMillis: () => fecha.getTime(),
@@ -41,10 +68,26 @@ function adaptarMensaje(m: any): Mensaje {
   } as unknown as Mensaje;
 }
 
+// Obtiene la fecha en milisegundos para ordenar los mensajes.
+function obtenerTiempo(mensaje: Mensaje): number {
+  const fecha = mensaje.fecha as any;
+
+  if (typeof fecha?.toMillis === "function") {
+    return fecha.toMillis();
+  }
+
+  if (typeof fecha?.toDate === "function") {
+    return fecha.toDate().getTime();
+  }
+
+  return new Date(fecha).getTime();
+}
+
 /**
- * Pide los últimos 50 mensajes del hilo cada pocos segundos (polling).
- * Solo avisa a la pantalla si algo cambió, y reutiliza los mensajes que no cambiaron.
- * Devuelve una función para dejar de escuchar, igual que onSnapshot.
+ * Escucha los mensajes de un hilo mediante Socket.IO.
+ *
+ * Primero carga los últimos 50 mensajes mediante HTTP.
+ * Después recibe los nuevos mensajes mediante eventos.
  */
 export function escucharMensajes(
   ruta: string,
@@ -52,69 +95,137 @@ export function escucharMensajes(
   alError: (error: Error) => void
 ) {
   const hiloId = hiloIdDeRuta(ruta);
-  let anteriores = new Map<string, { firma: string; mensaje: Mensaje }>();
-  let activo = true;
-  let primeraVez = true;
 
-  const cargar = async () => {
+  let activo = true;
+  let mensajesActuales: Mensaje[] = [];
+
+  // Evita perder mensajes que lleguen mientras se carga el historial.
+  const integrarMensaje = (mensajeRecibido: any) => {
+    if (!activo) return;
+
+    const mensaje = adaptarMensaje(mensajeRecibido);
+
+    const existe = mensajesActuales.some(
+      (m) => m.id === mensaje.id
+    );
+
+    if (existe) {
+      mensajesActuales = mensajesActuales.map((m) =>
+        m.id === mensaje.id ? mensaje : m
+      );
+    } else {
+      mensajesActuales = [...mensajesActuales, mensaje];
+    }
+
+    mensajesActuales.sort(
+      (a, b) => obtenerTiempo(a) - obtenerTiempo(b)
+    );
+
+    alCambiar([...mensajesActuales]);
+  };
+
+  // Carga inicial y sincronización al reconectar.
+  const cargarMensajes = async () => {
     try {
-      const filas: any[] = await pedir(`/hilos/${encodeURIComponent(hiloId)}/mensajes`);
+      const filas: any[] = await pedir(
+        `/hilos/${encodeURIComponent(hiloId)}/mensajes`
+      );
+
       if (!activo) return;
 
-      const siguientes = new Map<string, { firma: string; mensaje: Mensaje }>();
-      let hayCambios = primeraVez || filas.length !== anteriores.size;
-
-      const mensajes = filas.map((fila) => {
-        const firma = JSON.stringify(fila);
-        const previo = anteriores.get(fila._id);
-        if (previo && previo.firma === firma) {
-          siguientes.set(fila._id, previo);
-          return previo.mensaje;
-        }
-        hayCambios = true;
-        const mensaje = adaptarMensaje(fila);
-        siguientes.set(fila._id, { firma, mensaje });
-        return mensaje;
-      });
-
-      anteriores = siguientes;
-      if (hayCambios) alCambiar(mensajes);
-      primeraVez = false;
-    } catch (e: any) {
-      if (activo) alError(e instanceof Error ? e : new Error(e?.message || "Error al cargar mensajes"));
+      filas.forEach(integrarMensaje);
+    } catch (error: any) {
+      if (activo) {
+        alError(
+          error instanceof Error
+            ? error
+            : new Error("Error al cargar mensajes")
+        );
+      }
     }
   };
 
-  cargar();
-  const temporizador = setInterval(cargar, INTERVALO_MS);
-  window.addEventListener(EVENTO_REFRESCAR, cargar);
+  // Creamos la conexión Socket.IO.
+  const socket = io(SOCKET_URL, {
+    transports: ["websocket"],
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+  });
 
+  // Cuando se conecta, entra a la sala y sincroniza el historial.
+  socket.on("connect", () => {
+    console.log("Socket.IO conectado:", socket.id);
+
+    socket.emit("unirse-hilo", hiloId);
+
+    cargarMensajes();
+  });
+
+  // Recibir mensajes nuevos.
+  socket.on("nuevo-mensaje", (mensaje: any) => {
+    console.log("Nuevo mensaje recibido:", mensaje);
+    integrarMensaje(mensaje);
+  });
+
+  // Recibir mensajes actualizados, por ejemplo, por reacciones.
+  socket.on("mensaje-actualizado", (mensaje: any) => {
+    integrarMensaje(mensaje);
+  });
+
+  socket.on("connect_error", (error) => {
+    console.error("Error de conexión Socket.IO:", error.message);
+  });
+
+  // Carga el historial aunque el socket todavía esté conectándose.
+  cargarMensajes();
+
+  // Limpieza cuando se cambia de hilo o se desmonta el componente.
   return () => {
     activo = false;
-    clearInterval(temporizador);
-    window.removeEventListener(EVENTO_REFRESCAR, cargar);
+
+    socket.emit("salir-hilo", hiloId);
+
+    socket.removeAllListeners();
+    socket.disconnect();
+
+    console.log("Socket.IO desconectado del hilo:", hiloId);
   };
 }
 
-// Sube un archivo a Cloudinary. Lanza un error si la subida falla.
-// (Se deja igual: todavía no pasa por archivos-service.)
-export async function subirArchivo(archivo: File): Promise<ArchivoAdjunto> {
+// Sube un archivo a Cloudinary.
+export async function subirArchivo(
+  archivo: File
+): Promise<ArchivoAdjunto> {
   const formData = new FormData();
+
   formData.append("file", archivo);
   formData.append("upload_preset", "chat_upload");
 
   const res = await fetch(
     `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/upload`,
-    { method: "POST", body: formData }
+    {
+      method: "POST",
+      body: formData,
+    }
   );
+
   const data = await res.json();
+
   if (!res.ok || !data.secure_url) {
-    throw new Error(data?.error?.message || "No se pudo subir el archivo");
+    throw new Error(
+      data?.error?.message || "No se pudo subir el archivo"
+    );
   }
 
-  return { url: data.secure_url, nombre: archivo.name, tipo: archivo.type };
+  return {
+    url: data.secure_url,
+    nombre: archivo.name,
+    tipo: archivo.type,
+  };
 }
 
+// Envía un mensaje mediante HTTP.
 export async function enviarMensaje(
   ruta: string,
   autor: Usuario,
@@ -122,31 +233,36 @@ export async function enviarMensaje(
   archivo: File | null,
   mensajeCitado: Mensaje | null
 ) {
-  // Si hay archivo, se sube primero; si falla, el mensaje no se envía
-  const archivoSubido = archivo ? await subirArchivo(archivo) : null;
+  const archivoSubido = archivo
+    ? await subirArchivo(archivo)
+    : null;
 
-  await pedir(`/hilos/${encodeURIComponent(hiloIdDeRuta(ruta))}/mensajes`, {
-    method: "POST",
-    body: JSON.stringify({
-      texto,
-      autorId: autor.uid,
-      autorNombre: autor.nombre,
-      autorAvatar: autor.avatar || "",
-      autorAvatarColor: autor.avatarColor || "#5865f2",
-      archivos: archivoSubido ? [archivoSubido] : [],
-      respondidoA: mensajeCitado
-        ? { autorNombre: mensajeCitado.autorNombre, texto: mensajeCitado.texto }
-        : null,
-    }),
-  });
+  const mensaje = await pedir(
+    `/hilos/${encodeURIComponent(hiloIdDeRuta(ruta))}/mensajes`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        texto,
+        autorId: autor.uid,
+        autorNombre: autor.nombre,
+        autorAvatar: autor.avatar || "",
+        autorAvatarColor: autor.avatarColor || "#5865f2",
+        archivos: archivoSubido ? [archivoSubido] : [],
+        respondidoA: mensajeCitado
+          ? {
+              autorNombre: mensajeCitado.autorNombre,
+              texto: mensajeCitado.texto,
+            }
+          : null,
+      }),
+    }
+  );
 
-  window.dispatchEvent(new Event(EVENTO_REFRESCAR)); // que se vea al instante
+  return mensaje;
 }
 
-/**
- * Agrega o quita la reacción del usuario. El backend decide si la agrega o la quita,
- * por eso ya no se usa yaReacciono (se deja el parámetro para no romper los componentes).
- */
+// Agrega o quita una reacción mediante HTTP.
+// El backend notificará el cambio mediante Socket.IO.
 export async function alternarReaccion(
   _ruta: string,
   mensajeId: string,
@@ -154,10 +270,8 @@ export async function alternarReaccion(
   uid: string,
   _yaReacciono: boolean
 ) {
-  await pedir(`/mensajes/${encodeURIComponent(mensajeId)}/reacciones`, {
+  return pedir(`/mensajes/${encodeURIComponent(mensajeId)}/reacciones`, {
     method: "POST",
     body: JSON.stringify({ emoji, uid }),
   });
-
-  window.dispatchEvent(new Event(EVENTO_REFRESCAR));
 }
