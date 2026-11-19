@@ -50,7 +50,8 @@ export default function UnirseEquipo() {
       await login();
       // Quitamos la comprobación manual de authService que hacía romper el flujo
     } catch (err) {
-      setError("Error al iniciar sesión con Google.");
+      console.error("Error al iniciar sesión con Google:", err);
+      setError(err instanceof Error ? err.message : "No se pudo iniciar sesión con Google.");
     }
   };
 

@@ -45,11 +45,9 @@ export function useAutenticacion() {
   }, []);
 
   const login = useCallback(async () => {
-    try {
-      await iniciarSesionConGoogle();
-    } catch (error) {
-      console.error("Error al iniciar sesión con Google", error);
-    }
+    // El formulario que inicia sesión debe poder mostrar el error real. Si se
+    // captura aquí, la pantalla avanza aunque Firebase haya rechazado el acceso.
+    await iniciarSesionConGoogle();
   }, []);
 
   const logout = useCallback(async () => {

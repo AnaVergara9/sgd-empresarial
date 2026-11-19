@@ -5,8 +5,8 @@ import { io } from "socket.io-client";
 // API REST: continúa pasando por el Gateway.
 const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
-// Socket.IO: conexión directa al chat-service durante desarrollo local.
-// Cuando agreguemos NGINX cambiaremos esta dirección.
+// Socket.IO pasa por Nginx, que distribuye la conexión entre las instancias del chat.
+// En despliegues, VITE_SOCKET_URL debe apuntar al host público de ese balanceador.
 const SOCKET_URL =
   import.meta.env.VITE_SOCKET_URL || "http://localhost:4004";
 
@@ -124,7 +124,8 @@ export function escucharMensajes(
     alCambiar([...mensajesActuales]);
   };
 
-  // Carga inicial y sincronización al reconectar.
+  // La carga inicial se hace aunque Socket.IO aún esté conectando. Al reconectar,
+  // volvemos a sincronizar por si el navegador perdió eventos mientras estuvo fuera.
   const cargarMensajes = async () => {
     try {
       const filas: any[] = await pedir(
@@ -153,7 +154,8 @@ export function escucharMensajes(
     reconnectionDelay: 1000,
   });
 
-  // Cuando se conecta, entra a la sala y sincroniza el historial.
+  // Cuando se conecta, entra a la sala y sincroniza el historial. Esta sincronización
+  // también sirve si el primer HTTP falló mientras Socket.IO estaba conectando.
   socket.on("connect", () => {
     console.log("Socket.IO conectado:", socket.id);
 
@@ -193,36 +195,25 @@ export function escucharMensajes(
   };
 }
 
-// Sube un archivo a Cloudinary.
+// Sube el archivo al servicio de archivos por el gateway. El backend lo guarda
+// en uploads local si Cloudinary no está configurado.
 export async function subirArchivo(
   archivo: File
 ): Promise<ArchivoAdjunto> {
   const formData = new FormData();
+  formData.append("archivo", archivo);
 
-  formData.append("file", archivo);
-  formData.append("upload_preset", "chat_upload");
+  const res = await fetch(`${API}/archivos`, {
+    method: "POST",
+    body: formData,
+  });
+  const data = await res.json().catch(() => ({}));
 
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/upload`,
-    {
-      method: "POST",
-      body: formData,
-    }
-  );
-
-  const data = await res.json();
-
-  if (!res.ok || !data.secure_url) {
-    throw new Error(
-      data?.error?.message || "No se pudo subir el archivo"
-    );
+  if (!res.ok || !data.url) {
+    throw new Error(data.error || "No se pudo subir el archivo");
   }
 
-  return {
-    url: data.secure_url,
-    nombre: archivo.name,
-    tipo: archivo.type,
-  };
+  return data as ArchivoAdjunto;
 }
 
 // Envía un mensaje mediante HTTP.

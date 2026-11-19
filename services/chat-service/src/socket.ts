@@ -6,6 +6,13 @@ import { createAdapter } from "@socket.io/redis-adapter";
 
 let io: Server | null = null;
 
+function esUuid(valor: unknown): valor is string {
+  return (
+    typeof valor === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(valor)
+  );
+}
+
 /**
  * Inicializa Socket.IO sobre el servidor HTTP.
  * Si existe REDIS_URL, conecta el adaptador para
@@ -53,7 +60,7 @@ export async function inicializarSocket(server: HttpServer) {
 
     // El usuario entra a la sala correspondiente a un hilo.
     socket.on("unirse-hilo", (hiloId: string) => {
-      if (typeof hiloId !== "string" || !hiloId.trim()) {
+      if (!esUuid(hiloId)) {
         return;
       }
 
@@ -63,7 +70,7 @@ export async function inicializarSocket(server: HttpServer) {
 
     // El usuario sale de la sala.
     socket.on("salir-hilo", (hiloId: string) => {
-      if (typeof hiloId !== "string" || !hiloId.trim()) {
+      if (!esUuid(hiloId)) {
         return;
       }
 
