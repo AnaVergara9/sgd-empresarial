@@ -46,3 +46,9 @@ declare module "mf_chat/ChatArea" {
   }>;
   export default C;
 }
+
+declare module "mf_videollamada/VideoLlamada" {
+  import type { ComponentType } from "react";
+  const C: ComponentType<{ hiloId: string }>;
+  export default C;
+}

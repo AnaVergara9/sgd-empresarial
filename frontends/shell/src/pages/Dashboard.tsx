@@ -8,6 +8,7 @@ const ColumnaCanales = lazy(() => import("mf_navegacion/ColumnaCanales"));
 const ColumnaSubcanales = lazy(() => import("mf_navegacion/ColumnaSubcanales"));
 const ColumnaHilos = lazy(() => import("mf_navegacion/ColumnaHilos"));
 const ChatArea = lazy(() => import("mf_chat/ChatArea"));
+const VideoLlamada = lazy(() => import("mf_videollamada/VideoLlamada"));
 
 export default function Dashboard() {
   const { datosUsuario, logout, cargando } = useAuthContext();
@@ -63,17 +64,28 @@ export default function Dashboard() {
           )}
         </Suspense>
 
-        <main className="flex flex-1 overflow-hidden">
+        <main className="flex min-w-0 flex-1 overflow-hidden">
           {hiloId ? (
-            <Suspense fallback={<p className="p-4 text-slate-400">Cargando chat...</p>}>
-              <ChatArea
-                empresaId={empresaId}
-                canalId={canalId}
-                subcanalId={subcanalId}
-                hiloId={hiloId}
-                datosUsuario={datosUsuario}
-              />
-            </Suspense>
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+              <div className="flex min-h-[68px] items-center justify-between gap-3 border-b border-white/10 bg-[#25262a] px-4 py-3 sm:px-6">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-white">Espacio del hilo</p>
+                  <p className="text-xs text-slate-400">Chat y videollamada en el mismo canal</p>
+                </div>
+                <Suspense fallback={<span className="text-xs text-slate-400">Cargando llamada…</span>}>
+                  <VideoLlamada hiloId={hiloId} />
+                </Suspense>
+              </div>
+              <Suspense fallback={<p className="p-4 text-slate-400">Cargando chat...</p>}>
+                <ChatArea
+                  empresaId={empresaId}
+                  canalId={canalId}
+                  subcanalId={subcanalId}
+                  hiloId={hiloId}
+                  datosUsuario={datosUsuario}
+                />
+              </Suspense>
+            </div>
           ) : (
             <p className="m-auto text-slate-400">Selecciona un hilo</p>
           )}

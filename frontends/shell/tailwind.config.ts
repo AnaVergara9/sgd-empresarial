@@ -7,7 +7,8 @@ const config: Config = {
     "./index.html",
     "./src/**/*.{ts,tsx}",
     "../mf-navegacion/src/**/*.{ts,tsx}",
-    "../mf-chat/src/**/*.{ts,tsx}"
+    "../mf-chat/src/**/*.{ts,tsx}",
+    "../mf-videollamada/src/**/*.{ts,tsx}"
   ],
   theme: {
   	extend: {
