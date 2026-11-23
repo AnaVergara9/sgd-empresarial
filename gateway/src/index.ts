@@ -9,6 +9,7 @@ const servicios = {
   "canales-service": process.env.CANALES_URL || "http://127.0.0.1:4003",
   "chat-service": process.env.CHAT_URL || "http://127.0.0.1:4004",
   "archivos-service": process.env.ARCHIVOS_URL || "http://127.0.0.1:4005",
+  "videollamada-service": process.env.VIDEOLLAMADA_URL || "http://127.0.0.1:4006",
 };
 
 const app = express();

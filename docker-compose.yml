@@ -88,6 +88,14 @@ services:
     ports:
       - "5175:80"
 
+  mf-videollamada:
+    build:
+      context: ./frontends/mf-videollamada
+      args:
+        VITE_VIDEOLLAMADA_URL: ${VITE_VIDEOLLAMADA_URL:-http://localhost:4006}
+    ports:
+      - "5176:80"
+
   shell:
     build:
       context: ./frontends
@@ -96,6 +104,7 @@ services:
         VITE_API_URL: http://localhost:4000
         VITE_MF_NAVEGACION_URL: http://localhost:5174
         VITE_MF_CHAT_URL: http://localhost:5175
+        VITE_MF_VIDEOLLAMADA_URL: http://localhost:5176
         VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
         VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
         VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
@@ -107,6 +116,7 @@ services:
     depends_on:
       - mf-navegacion
       - mf-chat
+      - mf-videollamada
 
   # ---------- Microservicios ----------
   auth-service:
@@ -170,6 +180,18 @@ services:
       - chat-service-1
       - chat-service-2
 
+  videollamada-service:
+    build: ./services/videollamada-service
+    environment:
+      PORT: 4006
+      REDIS_URL: redis://redis:6379
+      SOCKET_CORS_ORIGIN: http://localhost:5173,http://localhost:5176
+    ports:
+      - "4006:4006"
+    depends_on:
+      redis:
+        condition: service_healthy
+
   archivos-service:
     build: ./services/archivos-service
     environment:
@@ -192,12 +214,14 @@ services:
       CANALES_URL: http://canales-service:4003
       CHAT_URL: http://chat-nginx:80
       ARCHIVOS_URL: http://archivos-service:4005
+      VIDEOLLAMADA_URL: http://videollamada-service:4006
     depends_on:
       - auth-service
       - empresa-service
       - canales-service
       - chat-nginx
       - archivos-service
+      - videollamada-service
 
 volumes:
   auth_data:
