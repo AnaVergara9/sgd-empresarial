@@ -135,8 +135,14 @@ export default function RegistroEmpresa() {
 
             <button
               onClick={async () => {
-                await login();
-                setPaso(3);
+                setError("");
+                try {
+                  await login();
+                  setPaso(3);
+                } catch (err) {
+                  console.error("Error al iniciar sesión con Google:", err);
+                  setError(err instanceof Error ? err.message : "No se pudo iniciar sesión con Google.");
+                }
               }}
               className="w-full py-4 bg-white border-2 border-slate-200 text-slate-900 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-50 transition-all"
             >
