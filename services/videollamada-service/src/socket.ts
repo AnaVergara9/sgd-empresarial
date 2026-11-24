@@ -6,7 +6,8 @@ import { createAdapter } from "@socket.io/redis-adapter";
 const PREFIJO_SALA_LLAMADA = "llamada:";
 const MAX_PARTICIPANTES = 8;
 type ResultadoUnion = { ok: true; participantes: string[] } | { ok: false; error: string };
-type MiembroHilo = { uid: string; nombre: string; cargo?: string };
+type MiembroHilo = { uid: string; nombre: string; cargo?: string; ocupado?: boolean };
+type ResultadoInicio = { ok: true; invitados: string[]; ocupados: MiembroHilo[] } | { ok: false; error: string };
 type EstadoLlamada = { ownerUid: string; uidsPermitidos: Set<string> };
 
 function esUuid(valor: unknown): valor is string {
@@ -35,6 +36,18 @@ export async function inicializarSenalizacion(server: HttpServer) {
     console.log("Adaptador Redis conectado para señalización de llamadas");
   }
 
+  const obtenerUidsOcupados = async (uids: string[]) => {
+    const ocupados = new Set<string>();
+    if (uids.length === 0) return ocupados;
+    for (const hiloActivo of llamadasActivas.keys()) {
+      const conectadosEnLlamada = await io.in(`${PREFIJO_SALA_LLAMADA}${hiloActivo}`).fetchSockets();
+      for (const persona of conectadosEnLlamada) {
+        if (typeof persona.data.uid === "string" && uids.includes(persona.data.uid)) ocupados.add(persona.data.uid);
+      }
+    }
+    return ocupados;
+  };
+
   io.on("connection", (socket) => {
     socket.on("unirse-hilo", (datos: unknown) => {
       const entrada = typeof datos === "string" ? { hiloId: datos } : datos as { hiloId?: unknown; uid?: unknown; nombre?: unknown; cargo?: unknown };
@@ -61,10 +74,12 @@ export async function inicializarSenalizacion(server: HttpServer) {
       try {
         const sockets = await io.in(`hilo:${hiloId}`).fetchSockets();
         const miembros = new Map<string, MiembroHilo>();
+        const uids = [...new Set(sockets.map((persona) => persona.data.uid).filter((uid): uid is string => typeof uid === "string" && !!uid && uid !== socket.data.uid))];
+        const ocupados = await obtenerUidsOcupados(uids);
         for (const conectado of sockets) {
           const uid = conectado.data.uid;
           if (typeof uid !== "string" || !uid || uid === socket.data.uid || miembros.has(uid)) continue;
-          miembros.set(uid, { uid, nombre: conectado.data.nombre || "Usuario", cargo: conectado.data.cargo || "" });
+          miembros.set(uid, { uid, nombre: conectado.data.nombre || "Usuario", cargo: conectado.data.cargo || "", ocupado: ocupados.has(uid) });
         }
         confirmar?.({ ok: true, miembros: [...miembros.values()] });
       } catch (error) {
@@ -73,7 +88,7 @@ export async function inicializarSenalizacion(server: HttpServer) {
       }
     });
 
-    socket.on("llamada:iniciar", async (datos: { hiloId?: unknown; invitados?: unknown }, confirmar?: (resultado: ResultadoUnion) => void) => {
+    socket.on("llamada:iniciar", async (datos: { hiloId?: unknown; invitados?: unknown }, confirmar?: (resultado: ResultadoInicio) => void) => {
       const hiloId = datos?.hiloId;
       const invitados = Array.isArray(datos?.invitados) ? [...new Set(datos.invitados.filter((uid): uid is string => typeof uid === "string" && uid.trim()).map((uid) => uid.trim()))] : [];
       if (!esUuid(hiloId) || socket.data.hiloId !== hiloId || !socket.rooms.has(`hilo:${hiloId}`) || typeof socket.data.uid !== "string") {
@@ -97,13 +112,28 @@ export async function inicializarSenalizacion(server: HttpServer) {
           return;
         }
 
-        const permitidos = new Set([socket.data.uid, ...invitados]);
+        const uidsOcupados = await obtenerUidsOcupados(invitados);
+
+        const personasOcupadas = [...new Set(socketsHilo
+          .filter((persona) => uidsOcupados.has(persona.data.uid))
+          .map((persona) => persona.data.uid))]
+          .map((uid) => socketsHilo.find((persona) => persona.data.uid === uid))
+          .filter((persona): persona is (typeof socketsHilo)[number] => !!persona)
+          .map((persona) => ({ uid: persona.data.uid as string, nombre: persona.data.nombre || "Usuario", cargo: persona.data.cargo || "" }));
+        const invitadosDisponibles = invitados.filter((uid) => !uidsOcupados.has(uid));
+        if (invitadosDisponibles.length === 0) {
+          const nombres = personasOcupadas.map((persona) => persona.nombre).join(", ");
+          confirmar?.({ ok: false, error: `${nombres || "La persona seleccionada"} ${personasOcupadas.length === 1 ? "ya está" : "ya están"} en otra videollamada` });
+          return;
+        }
+
+        const permitidos = new Set([socket.data.uid, ...invitadosDisponibles]);
         llamadasActivas.set(hiloId, { ownerUid: socket.data.uid, uidsPermitidos: permitidos });
         await socket.join(`${PREFIJO_SALA_LLAMADA}${hiloId}`);
-        confirmar?.({ ok: true, participantes: [] });
+        confirmar?.({ ok: true, invitados: invitadosDisponibles, ocupados: personasOcupadas });
 
         for (const persona of socketsHilo) {
-          if (invitados.includes(persona.data.uid)) {
+          if (invitadosDisponibles.includes(persona.data.uid)) {
             io.to(persona.id).emit("llamada:entrante", {
               hiloId,
               socketId: socket.id,

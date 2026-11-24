@@ -27,7 +27,7 @@ type Senal = {
 
 type ConexionPeer = { conexion: RTCPeerConnection; candidatosPendientes: RTCIceCandidateInit[] };
 type EstadoMediosRemoto = { microfonoActivo: boolean; camaraActiva: boolean };
-type MiembroHilo = { uid: string; nombre: string; cargo?: string };
+type MiembroHilo = { uid: string; nombre: string; cargo?: string; ocupado?: boolean };
 
 interface Props {
   hiloId: string;
@@ -53,6 +53,7 @@ export default function VideoLlamada({ hiloId, usuarioUid, usuarioNombre, usuari
   const [invitadosSeleccionados, setInvitadosSeleccionados] = useState<string[]>([]);
   const [cargandoMiembros, setCargandoMiembros] = useState(false);
   const [nombreInvitante, setNombreInvitante] = useState("");
+  const [avisoInvitados, setAvisoInvitados] = useState("");
   const [microfonoActivo, setMicrofonoActivo] = useState(true);
   const [camaraActiva, setCamaraActiva] = useState(true);
   const [error, setError] = useState("");
@@ -139,15 +140,15 @@ export default function VideoLlamada({ hiloId, usuarioUid, usuarioNombre, usuari
   }, [hiloId]);
 
   const iniciarEnServidor = useCallback((socket: Socket, invitados: string[]) => {
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<{ invitados: string[]; ocupados: MiembroHilo[] }>((resolve, reject) => {
       const timeout = window.setTimeout(() => reject(new Error("El servidor tardó en iniciar la llamada.")), 8000);
-      socket.emit("llamada:iniciar", { hiloId, invitados }, (resultado: { ok: boolean; error?: string }) => {
+      socket.emit("llamada:iniciar", { hiloId, invitados }, (resultado: { ok: boolean; invitados?: string[]; ocupados?: MiembroHilo[]; error?: string }) => {
         window.clearTimeout(timeout);
         if (!resultado?.ok) {
           reject(new Error(resultado?.error || "No se pudo iniciar la videollamada."));
           return;
         }
-        resolve();
+        resolve({ invitados: resultado.invitados || [], ocupados: resultado.ocupados || [] });
       });
     });
   }, [hiloId]);
@@ -339,13 +340,17 @@ export default function VideoLlamada({ hiloId, usuarioUid, usuarioNombre, usuari
   const iniciarLlamada = async (uidsInvitados: string[]) => {
     setError("");
     setAviso("");
+    setAvisoInvitados("");
     try {
       await obtenerCamaraYMicrofono();
       const socket = socketRef.current;
       if (!socket?.connected) throw new Error("La conexión con el servidor aún no está lista. Intenta otra vez.");
 
-      await iniciarEnServidor(socket, uidsInvitados);
-      setCantidadParticipantes(uidsInvitados.length + 1);
+      const resultado = await iniciarEnServidor(socket, uidsInvitados);
+      setCantidadParticipantes(resultado.invitados.length + 1);
+      if (resultado.ocupados.length > 0) {
+        setAvisoInvitados(`No se invitó a ${resultado.ocupados.map((persona) => persona.nombre).join(", ")} porque ${resultado.ocupados.length === 1 ? "ya está" : "ya están"} en otra videollamada.`);
+      }
       setModalInvitaciones(false);
       setEstado("calling");
     } catch (causa) {
@@ -417,17 +422,25 @@ export default function VideoLlamada({ hiloId, usuarioUid, usuarioNombre, usuari
               <p className="mt-1 text-sm text-slate-400">Selecciona personas conectadas a este hilo. Solo las invitadas podrán unirse.</p>
             </header>
             <div className="max-h-[50vh] overflow-y-auto p-3">
-              {cargandoMiembros ? (
+                {error && <p role="alert" className="mx-3 mt-3 rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{error}</p>}
+                {!cargandoMiembros && miembrosDisponibles.some((miembro) => miembro.ocupado) && (
+                  <p role="status" className="mx-3 mb-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
+                    Algunas personas ya están en otra videollamada. Aparecen marcadas y no se pueden seleccionar.
+                  </p>
+                )}
+                {cargandoMiembros ? (
                 <div className="flex items-center justify-center gap-3 p-8 text-sm text-slate-300"><LoaderCircle className="animate-spin" size={20} /> Buscando personas conectadas…</div>
               ) : miembrosDisponibles.length === 0 ? (
                 <p className="p-8 text-center text-sm text-slate-400">No hay otras personas conectadas a este hilo.</p>
               ) : (
                 miembrosDisponibles.map((miembro) => {
                   const seleccionado = invitadosSeleccionados.includes(miembro.uid);
+                  const deshabilitado = miembro.ocupado === true;
                   return (
-                    <label key={miembro.uid} className={`mb-2 flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition ${seleccionado ? "border-violet-400/50 bg-violet-500/10" : "border-white/5 bg-white/[0.03] hover:bg-white/[0.07]"}`}>
+                    <label key={miembro.uid} className={`mb-2 flex items-center gap-3 rounded-2xl border p-3 transition ${deshabilitado ? "cursor-not-allowed border-rose-400/10 bg-rose-400/[0.04] opacity-75" : `cursor-pointer ${seleccionado ? "border-violet-400/50 bg-violet-500/10" : "border-white/5 bg-white/[0.03] hover:bg-white/[0.07]"}`}`}>
                       <input
                         type="checkbox"
+                        disabled={deshabilitado}
                         checked={seleccionado}
                         onChange={() => setInvitadosSeleccionados((actuales) => seleccionado ? actuales.filter((uid) => uid !== miembro.uid) : [...actuales, miembro.uid])}
                         className="h-4 w-4 accent-violet-500"
@@ -437,6 +450,7 @@ export default function VideoLlamada({ hiloId, usuarioUid, usuarioNombre, usuari
                         <span className="block truncate text-sm font-medium text-white">{miembro.nombre}</span>
                         {miembro.cargo && <span className="block truncate text-xs text-slate-400">{miembro.cargo}</span>}
                       </span>
+                      {deshabilitado && <span className="shrink-0 rounded-lg bg-rose-500/15 px-2.5 py-1.5 text-xs font-semibold text-rose-200">En otra llamada</span>}
                     </label>
                   );
                 })
@@ -477,6 +491,12 @@ export default function VideoLlamada({ hiloId, usuarioUid, usuarioNombre, usuari
                 </span>
               )}
             </header>
+
+            {avisoInvitados && (
+              <p role="status" className="mx-4 mt-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100 sm:mx-7">
+                {avisoInvitados}
+              </p>
+            )}
 
             {estado === "incoming" ? (
               <section className="mx-4 mb-4 flex min-h-[360px] flex-col items-center justify-center rounded-3xl border border-white/5 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-violet-500/15 via-[#131824] to-[#10141d] px-6 py-10 text-center sm:mx-7 sm:mb-7">
