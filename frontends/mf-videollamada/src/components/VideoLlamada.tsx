@@ -27,12 +27,16 @@ type Senal = {
 
 type ConexionPeer = { conexion: RTCPeerConnection; candidatosPendientes: RTCIceCandidateInit[] };
 type EstadoMediosRemoto = { microfonoActivo: boolean; camaraActiva: boolean };
+type MiembroHilo = { uid: string; nombre: string; cargo?: string };
 
 interface Props {
   hiloId: string;
+  usuarioUid: string;
+  usuarioNombre: string;
+  usuarioCargo?: string;
 }
 
-export default function VideoLlamada({ hiloId }: Props) {
+export default function VideoLlamada({ hiloId, usuarioUid, usuarioNombre, usuarioCargo }: Props) {
   const socketRef = useRef<Socket | null>(null);
   const peersRef = useRef<Map<string, ConexionPeer>>(new Map());
   const streamLocalRef = useRef<MediaStream | null>(null);
@@ -44,6 +48,11 @@ export default function VideoLlamada({ hiloId }: Props) {
   const [streamsRemotos, setStreamsRemotos] = useState<Record<string, MediaStream>>({});
   const [estadosRemotos, setEstadosRemotos] = useState<Record<string, EstadoMediosRemoto>>({});
   const [cantidadParticipantes, setCantidadParticipantes] = useState(1);
+  const [modalInvitaciones, setModalInvitaciones] = useState(false);
+  const [miembrosDisponibles, setMiembrosDisponibles] = useState<MiembroHilo[]>([]);
+  const [invitadosSeleccionados, setInvitadosSeleccionados] = useState<string[]>([]);
+  const [cargandoMiembros, setCargandoMiembros] = useState(false);
+  const [nombreInvitante, setNombreInvitante] = useState("");
   const [microfonoActivo, setMicrofonoActivo] = useState(true);
   const [camaraActiva, setCamaraActiva] = useState(true);
   const [error, setError] = useState("");
@@ -114,6 +123,54 @@ export default function VideoLlamada({ hiloId }: Props) {
       });
     });
   }, [hiloId]);
+
+  const obtenerMiembros = useCallback((socket: Socket) => {
+    return new Promise<MiembroHilo[]>((resolve, reject) => {
+      const timeout = window.setTimeout(() => reject(new Error("El servidor tardó en cargar las personas.")), 8000);
+      socket.emit("llamada:miembros", hiloId, (resultado: { ok: boolean; miembros?: MiembroHilo[]; error?: string }) => {
+        window.clearTimeout(timeout);
+        if (!resultado?.ok) {
+          reject(new Error(resultado?.error || "No se pudieron cargar las personas del hilo."));
+          return;
+        }
+        resolve(resultado.miembros || []);
+      });
+    });
+  }, [hiloId]);
+
+  const iniciarEnServidor = useCallback((socket: Socket, invitados: string[]) => {
+    return new Promise<void>((resolve, reject) => {
+      const timeout = window.setTimeout(() => reject(new Error("El servidor tardó en iniciar la llamada.")), 8000);
+      socket.emit("llamada:iniciar", { hiloId, invitados }, (resultado: { ok: boolean; error?: string }) => {
+        window.clearTimeout(timeout);
+        if (!resultado?.ok) {
+          reject(new Error(resultado?.error || "No se pudo iniciar la videollamada."));
+          return;
+        }
+        resolve();
+      });
+    });
+  }, [hiloId]);
+
+  const abrirSelectorInvitados = async () => {
+    setError("");
+    const socket = socketRef.current;
+    if (!socket?.connected) {
+      setError("La conexión con el servicio de videollamadas aún no está lista. Intenta otra vez.");
+      return;
+    }
+    setCargandoMiembros(true);
+    setInvitadosSeleccionados([]);
+    setModalInvitaciones(true);
+    try {
+      setMiembrosDisponibles(await obtenerMiembros(socket));
+    } catch (causa) {
+      setModalInvitaciones(false);
+      setError(causa instanceof Error ? causa.message : "No se pudieron cargar las personas del hilo.");
+    } finally {
+      setCargandoMiembros(false);
+    }
+  };
 
   const crearConexion = useCallback((peerId: string) => {
     const existente = peersRef.current.get(peerId);
@@ -238,10 +295,16 @@ export default function VideoLlamada({ hiloId }: Props) {
     const socket = io(VIDEO_URL, { transports: ["websocket"], reconnection: true });
     socketRef.current = socket;
 
-    socket.on("connect", () => socket.emit("unirse-hilo", hiloId));
-    socket.on("llamada:entrante", (datos: { hiloId: string }) => {
+    socket.on("connect", () => socket.emit("unirse-hilo", {
+      hiloId,
+      uid: usuarioUid,
+      nombre: usuarioNombre,
+      cargo: usuarioCargo || "",
+    }));
+    socket.on("llamada:entrante", (datos: { hiloId: string; nombre?: string }) => {
       if (datos?.hiloId === hiloId) {
         setError("");
+        setNombreInvitante(datos.nombre || "");
         setEstado((actual) => actual === "idle" ? "incoming" : actual);
       }
     });
@@ -271,9 +334,9 @@ export default function VideoLlamada({ hiloId }: Props) {
       socketRef.current = null;
       cerrarRecursos();
     };
-  }, [hiloId, crearOferta, manejarSenal, finalizar, cerrarRecursos, quitarPeer]);
+  }, [hiloId, usuarioUid, usuarioNombre, usuarioCargo, crearOferta, manejarSenal, finalizar, cerrarRecursos, quitarPeer]);
 
-  const iniciarLlamada = async () => {
+  const iniciarLlamada = async (uidsInvitados: string[]) => {
     setError("");
     setAviso("");
     try {
@@ -281,10 +344,10 @@ export default function VideoLlamada({ hiloId }: Props) {
       const socket = socketRef.current;
       if (!socket?.connected) throw new Error("La conexión con el servidor aún no está lista. Intenta otra vez.");
 
-      const participantes = await unirseALlamada(socket);
-      setCantidadParticipantes(participantes.length + 1);
+      await iniciarEnServidor(socket, uidsInvitados);
+      setCantidadParticipantes(uidsInvitados.length + 1);
+      setModalInvitaciones(false);
       setEstado("calling");
-      socket.emit("llamada:invitar", hiloId);
     } catch (causa) {
       cerrarRecursos();
       setEstado("idle");
@@ -336,7 +399,7 @@ export default function VideoLlamada({ hiloId }: Props) {
     <>
       <button
         type="button"
-        onClick={() => void iniciarLlamada()}
+        onClick={() => void abrirSelectorInvitados()}
         disabled={estado !== "idle"}
         className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-950/30 transition hover:-translate-y-0.5 hover:from-violet-500 hover:to-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-50"
       >
@@ -345,6 +408,50 @@ export default function VideoLlamada({ hiloId }: Props) {
 
       {aviso && estado === "idle" && <span role="status" className="text-xs text-zinc-400">{aviso}</span>}
       {error && estado === "idle" && <span role="alert" className="text-xs text-rose-400">{error}</span>}
+
+      {modalInvitaciones && estado === "idle" && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="titulo-invitados">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-[#171c27] shadow-2xl">
+            <header className="border-b border-white/10 px-6 py-5">
+              <h2 id="titulo-invitados" className="text-lg font-semibold text-white">Elige quién puede entrar</h2>
+              <p className="mt-1 text-sm text-slate-400">Selecciona personas conectadas a este hilo. Solo las invitadas podrán unirse.</p>
+            </header>
+            <div className="max-h-[50vh] overflow-y-auto p-3">
+              {cargandoMiembros ? (
+                <div className="flex items-center justify-center gap-3 p-8 text-sm text-slate-300"><LoaderCircle className="animate-spin" size={20} /> Buscando personas conectadas…</div>
+              ) : miembrosDisponibles.length === 0 ? (
+                <p className="p-8 text-center text-sm text-slate-400">No hay otras personas conectadas a este hilo.</p>
+              ) : (
+                miembrosDisponibles.map((miembro) => {
+                  const seleccionado = invitadosSeleccionados.includes(miembro.uid);
+                  return (
+                    <label key={miembro.uid} className={`mb-2 flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition ${seleccionado ? "border-violet-400/50 bg-violet-500/10" : "border-white/5 bg-white/[0.03] hover:bg-white/[0.07]"}`}>
+                      <input
+                        type="checkbox"
+                        checked={seleccionado}
+                        onChange={() => setInvitadosSeleccionados((actuales) => seleccionado ? actuales.filter((uid) => uid !== miembro.uid) : [...actuales, miembro.uid])}
+                        className="h-4 w-4 accent-violet-500"
+                      />
+                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-500/20 font-semibold text-violet-200">{miembro.nombre.slice(0, 1).toUpperCase()}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-white">{miembro.nombre}</span>
+                        {miembro.cargo && <span className="block truncate text-xs text-slate-400">{miembro.cargo}</span>}
+                      </span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+            <footer className="flex items-center justify-between gap-3 border-t border-white/10 px-6 py-4">
+              <span className="text-xs text-slate-400">{invitadosSeleccionados.length} seleccionada(s) · máximo 7 invitados</span>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setModalInvitaciones(false)} className="rounded-xl border border-white/10 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/5">Cancelar</button>
+                <button type="button" disabled={cargandoMiembros || invitadosSeleccionados.length === 0 || invitadosSeleccionados.length > 7} onClick={() => void iniciarLlamada(invitadosSeleccionados)} className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40">Iniciar llamada</button>
+              </div>
+            </footer>
+          </div>
+        </div>
+      )}
 
       {estado !== "idle" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#080b12]/90 p-3 backdrop-blur-md sm:p-6" role="dialog" aria-modal="true" aria-label="Videollamada">
@@ -357,7 +464,7 @@ export default function VideoLlamada({ hiloId }: Props) {
                 <div className="min-w-0">
                   <h2 className="truncate font-semibold text-white">Videollamada del hilo</h2>
                   <p className="text-sm text-slate-400">
-                    {estado === "incoming" && "Una persona te está invitando a conversar"}
+                    {estado === "incoming" && `${nombreInvitante || "Una persona"} te invita a conversar`}
                     {estado === "calling" && "Esperando que alguien se una…"}
                     {estado === "connecting" && "Preparando audio y video…"}
                     {estado === "active" && `${cantidadParticipantes} participantes · ${tiempoFormateado}`}

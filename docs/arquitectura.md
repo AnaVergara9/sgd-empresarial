@@ -92,7 +92,7 @@ Eventos de sala que implementa el servidor: `unirse-hilo` y `salir-hilo`, con el
 
 ## Videollamadas implementadas como microfrontend y microservicio
 
-La videollamada está asociada al **hilo seleccionado** dentro de un canal y permite hasta ocho participantes. Al presionar **Videollamada**, las personas conectadas al hilo reciben la invitación y pueden aceptarla o rechazarla. La pantalla muestra una cuadrícula con el video local y los videos remotos, con controles para silenciar, apagar la cámara y colgar.
+La videollamada está asociada al **hilo seleccionado** dentro de un canal y permite hasta ocho participantes. Quien la inicia elige de una lista a qué personas conectadas al mismo hilo invitar. El microservicio envía la invitación solo a esas cuentas y comprueba la lista permitida antes de admitir a alguien. La pantalla muestra una cuadrícula con el video local y los videos remotos, con controles para silenciar, apagar la cámara y colgar.
 
 **WebRTC** transporta audio y video directamente entre los navegadores. El backend no graba ni retransmite esos medios. El microfrontend independiente `mf-videollamada` se compone desde `shell` junto al chat cuando se selecciona un hilo. Se conecta directamente al microservicio `videollamada-service` en el puerto 4006; los participantes intercambian ofertas, respuestas y candidatos ICE por pares a través de la sala `llamada:<hiloId>`. Esta primera versión usa una conexión WebRTC directa entre cada par de personas (malla), con un máximo de ocho personas por llamada. Redis permite que la señalización funcione entre instancias del microservicio.
 
@@ -102,6 +102,8 @@ La llamada en malla consume más ancho de banda a medida que se suman personas, 
 
 | Evento | Dirección | Función |
 |---|---|---|
+| `llamada:miembros` | Cliente → servidor → cliente | Devuelve las personas conectadas al mismo hilo para que quien inicia seleccione a quién invitar. |
+| `llamada:iniciar` | Cliente → servidor | Crea la llamada, guarda quién la inició y la lista permitida; invita solo a las cuentas seleccionadas. |
 | `llamada:unirse` | Cliente → servidor | Solicita entrar a la sala del hilo; devuelve un acuse con los participantes presentes o un error. |
 | `llamada:invitar` | Cliente → servidor | Avisa a las demás personas conectadas al hilo de una llamada entrante. |
 | `llamada:entrante` | Servidor → otros clientes del hilo | Muestra los botones Aceptar y Rechazar. |
