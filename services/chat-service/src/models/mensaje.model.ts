@@ -3,6 +3,9 @@ import { Schema, model } from "mongoose";
 const mensajeSchema = new Schema(
   {
     hiloId: { type: String, required: true, index: true },
+    // UUID que genera el navegador (módulo local). Si un reintento llega dos veces,
+    // el índice único evita guardar el mensaje repetido.
+    idCliente: { type: String, index: { unique: true, sparse: true } },
     texto: { type: String, default: "" },
     autorId: { type: String, required: true },
     autorNombre: { type: String, required: true },

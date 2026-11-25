@@ -73,6 +73,9 @@ services:
   mf-navegacion:
     build:
       context: ./frontends/mf-navegacion
+      # La navegación usa el módulo local (caché sin conexión), que vive fuera de su carpeta
+      additional_contexts:
+        local-module: ./local-module
       args:
         VITE_API_URL: http://localhost:4000
     ports:
@@ -81,6 +84,9 @@ services:
   mf-chat:
     build:
       context: ./frontends/mf-chat
+      # El chat usa el módulo local (cola offline), que vive fuera de su carpeta
+      additional_contexts:
+        local-module: ./local-module
       args:
         VITE_API_URL: http://localhost:4000
         VITE_SOCKET_URL: ${VITE_SOCKET_URL:-http://localhost:4004}
@@ -100,6 +106,9 @@ services:
     build:
       context: ./frontends
       dockerfile: shell/Dockerfile
+      # El shell usa el módulo local para recordar el perfil sin conexión
+      additional_contexts:
+        local-module: ./local-module
       args:
         VITE_API_URL: http://localhost:4000
         VITE_MF_NAVEGACION_URL: http://localhost:5174

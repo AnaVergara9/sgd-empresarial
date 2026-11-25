@@ -90,6 +90,26 @@ Los servicios y las bases se definen en `docker-compose.yml`. Para arrancar el p
 
 Eventos de sala que implementa el servidor: `unirse-hilo` y `salir-hilo`, con el identificador UUID del hilo. El cliente escucha `nuevo-mensaje` y `mensaje-actualizado`. El envío y las reacciones siguen usando HTTP; Socket.IO avisa a los demás participantes. En Docker Compose, el cliente se conecta a `http://localhost:4004` (configurable mediante `VITE_SOCKET_URL`), que es el puerto publicado por Nginx. El cliente está configurado para WebSocket, así evita necesitar sesiones persistentes para long-polling.
 
+## Módulo local: envío sin conexión
+
+`local-module` permite enviar mensajes y adjuntos sin conexión. `mf-chat` ya no envía directo al gateway. Primero **guarda el envío en IndexedDB** (la base de datos del navegador) y luego lo sincroniza:
+
+1. La persona envía un mensaje con o sin archivo. Queda guardado en el navegador con el estado "pendiente" y aparece de inmediato en el hilo; el adjunto se abre desde una URL `blob:` local.
+2. El módulo intenta enviarlo: sube el archivo a `POST /archivos` y crea el mensaje en `POST /hilos/:hiloId/mensajes`.
+3. Si no hay red, el gateway no responde o hay un error 5xx, el mensaje sigue pendiente. Se reintenta cuando vuelve la red, cuando Socket.IO se reconecta y cada 15 segundos.
+4. Cuando el servidor confirma el mensaje, este llega por Socket.IO con su `idCliente`, se reconoce como el pendiente y se borra de la cola.
+
+Decisiones:
+
+- **Idempotencia:** cada envío lleva un UUID (`idCliente`). `chat-service` tiene un índice único sobre ese campo y, si llega un reintento de un mensaje ya guardado, devuelve el existente en lugar de duplicarlo.
+- **Separación por cuenta:** la cola se guarda con el `uid`. Si otra cuenta inicia sesión en el mismo equipo, no ve ni envía los pendientes de la primera.
+- **Desacople:** el módulo no conoce el chat ni React; recibe una función `enviar`. Así puede reutilizarse en otros microfrontends.
+- **Límite:** la cola vive en el navegador de ese equipo. Nadie más ve el mensaje hasta que se sincroniza, igual que en WhatsApp o Slack.
+
+Además, el módulo tiene una **caché de lectura**. `mf-chat` guarda los últimos 50 mensajes de cada hilo abierto y `mf-navegacion` guarda las listas de canales, subcanales e hilos, y `shell` guarda el perfil del usuario para que recargar sin conexión no lo devuelva al login (Firebase ya conserva la sesión). Al abrir una pantalla se muestra primero la copia local y luego la respuesta del servidor; sin conexión se sigue viendo lo que ya se había cargado, como en WhatsApp.
+
+Detalle, garantías y pasos de prueba en `local-module/README.md`.
+
 ## Videollamadas implementadas como microfrontend y microservicio
 
 La videollamada está asociada al **hilo seleccionado** dentro de un canal y permite hasta ocho participantes. Al presionar **Videollamada**, las personas conectadas al hilo reciben la invitación y pueden aceptarla o rechazarla. La pantalla muestra una cuadrícula con el video local y los videos remotos, con controles para silenciar, apagar la cámara y colgar.
@@ -124,7 +144,7 @@ El cliente usa `VITE_VIDEOLLAMADA_URL` (por defecto `http://localhost:4006`) y u
 | Mensajes persistidos | Endpoints REST y almacenamiento MongoDB implementados. |
 | Actualización de mensajes en vivo | Socket.IO implementado; sincroniza el historial por HTTP al entrar y reconectar. |
 | Videollamadas en canales/hilos | Microfrontend y microservicio propios; videollamada WebRTC en malla de hasta ocho personas en el hilo seleccionado. TURN y SFU quedan fuera del alcance actual. |
-| Módulo local con Google Drive | Pendiente según el reparto del equipo; revisar `local-module` para delimitar su estado. |
+| Módulo local (uso sin conexión) | Implementado en `local-module`: cola de envíos (mensajes y archivos) y caché de lectura (mensajes y navegación) en IndexedDB; se sincroniza al reconectar. Ver la sección "Módulo local". |
 | Balanceo de cargas del chat | Nginx con dos réplicas de `chat-service` y estrategia `least_conn`; Redis comparte los eventos entre réplicas. |
 | Despliegue del backend y hosting de un microfrontend | Pendiente según el reparto. |
 | Documentación de arquitectura | Describe componentes, recorrido de mensajes, videollamadas, eventos y límites actuales. |
@@ -153,3 +173,5 @@ Para trabajar en equipo, cada integrante crea una rama, realiza commits pequeño
 - `frontends/mf-videollamada/src/components/VideoLlamada.tsx`: captura de cámara/micrófono, conexión WebRTC y controles de llamada.
 - `services/videollamada-service/src/socket.ts`: salas y señalización Socket.IO del microservicio de videollamada.
 - `frontends/shell/src/App.tsx`: rutas de la aplicación principal.
+- `local-module/src/cola.ts`: cola de envíos sin conexión (IndexedDB, reintentos, bloqueo entre pestañas).
+- `local-module/README.md`: funcionamiento, garantías y pruebas del módulo local.

@@ -9,6 +9,9 @@ interface Props {
   ruta: string;
   datosUsuario: Usuario;
   alResponder: (mensaje: TipoMensaje) => void;
+  // Solo se usan en mensajes que siguen en la cola local
+  alReintentar?: (id: string) => void;
+  alDescartar?: (id: string) => void;
 }
 
 // Formatear la fecha y hora de Firebase de forma humana
@@ -24,8 +27,11 @@ const formatearFecha = (timestamp: TipoMensaje["fecha"]) => {
 };
 
 // memo: el mensaje solo se vuelve a dibujar si cambian sus datos, no cada vez que llega otro mensaje
-function Mensaje({ mensaje, ruta, datosUsuario, alResponder }: Props) {
+function Mensaje({ mensaje, ruta, datosUsuario, alResponder, alReintentar, alDescartar }: Props) {
   const [mostrarEmojiMenu, setMostrarEmojiMenu] = useState(false);
+
+  // Mensaje guardado en el navegador que el servidor aún no tiene (módulo local)
+  const esLocal = Boolean(mensaje.estadoLocal);
 
   // Si ya reaccioné con este emoji, me quito; si no, me agrego
   const reaccionar = async (emoji: string) => {
@@ -81,9 +87,15 @@ function Mensaje({ mensaje, ruta, datosUsuario, alResponder }: Props) {
             className={`p-3 text-sm leading-relaxed shadow-md ${
               mensaje.respondidoA ? "rounded-b-xl" : "rounded-xl"
             } ${
-              esMio 
+              esMio
                 ? "bg-[#005c4b] text-white rounded-tr-none" // Verde WhatsApp si es mío
                 : "bg-[#202c33] text-zinc-100 rounded-tl-none" // Gris oscuro si es de otros
+            } ${
+              mensaje.estadoLocal === "error"
+                ? "ring-1 ring-rose-500/70"
+                : esLocal
+                ? "opacity-75 ring-1 ring-amber-400/50"
+                : ""
             }`}
           >
             <p className="whitespace-pre-wrap break-words">{mensaje.texto}</p>
@@ -92,10 +104,12 @@ function Mensaje({ mensaje, ruta, datosUsuario, alResponder }: Props) {
             {mensaje.archivos && mensaje.archivos.map((arch, i) => (
               <div key={i} className="mt-2 p-2 bg-black/20 rounded-lg flex items-center justify-between gap-4 border border-white/5">
                 <span className="text-xs text-zinc-300 truncate max-w-[180px]">📎 {arch.nombre}</span>
-                <a 
-                  href={arch.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
+                <a
+                  href={arch.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  // Las URL blob: (archivo aún en este equipo) se descargan con su nombre original
+                  download={arch.url.startsWith("blob:") ? arch.nombre : undefined}
                   className="text-xs text-sky-400 hover:underline shrink-0 font-medium"
                 >
                   Descargar
@@ -104,8 +118,9 @@ function Mensaje({ mensaje, ruta, datosUsuario, alResponder }: Props) {
             ))}
           </div>
 
-          {/* MENÚ FLOTANTE DE ACCIONES (Sale al pasar el mouse por encima) */}
-          <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 bg-[#232428] border border-zinc-700 rounded-lg shadow-xl px-1 py-0.5 opacity-0 group-hover/bubble:opacity-100 transition-opacity z-10 ${
+          {/* MENÚ FLOTANTE DE ACCIONES (Sale al pasar el mouse por encima).
+              No aplica a mensajes locales: reaccionar o responder necesita que exista en el servidor. */}
+          {!esLocal && <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 bg-[#232428] border border-zinc-700 rounded-lg shadow-xl px-1 py-0.5 opacity-0 group-hover/bubble:opacity-100 transition-opacity z-10 ${
             esMio ? "left-0 -translate-x-[110%]" : "right-0 translate-x-[110%]"
           }`}>
             <button 
@@ -122,10 +137,10 @@ function Mensaje({ mensaje, ruta, datosUsuario, alResponder }: Props) {
             >
               ↩️
             </button>
-          </div>
+          </div>}
 
           {/* VENTANA EMERGENTE DE REACCIONES (Mini Menú de Animación) */}
-          {mostrarEmojiMenu && (
+          {mostrarEmojiMenu && !esLocal && (
             <div className={`absolute bottom-full mb-2 bg-[#1e1f22] border border-zinc-700 p-2 rounded-full shadow-2xl flex gap-2 z-20 animate-bounce ${
               esMio ? "left-0" : "right-0"
             }`}>
@@ -141,6 +156,33 @@ function Mensaje({ mensaje, ruta, datosUsuario, alResponder }: Props) {
             </div>
           )}
         </div>
+
+        {/* ESTADO DEL MÓDULO LOCAL (mensaje guardado en este equipo) */}
+        {esLocal && (
+          <div className={`flex flex-wrap items-center gap-2 text-[11px] ${esMio ? "justify-end" : ""}`}>
+            {mensaje.estadoLocal === "enviando" && (
+              <span className="text-sky-300">↑ Enviando...</span>
+            )}
+            {mensaje.estadoLocal === "pendiente" && (
+              <span className="text-amber-300" title={mensaje.errorLocal || undefined}>
+                ⏳ Guardado en este equipo · se enviará al recuperar la conexión
+              </span>
+            )}
+            {mensaje.estadoLocal === "error" && (
+              <>
+                <span className="text-rose-400">⚠️ No se envió: {mensaje.errorLocal || "error desconocido"}</span>
+                <button onClick={() => alReintentar?.(mensaje.id)} className="text-sky-400 hover:underline">
+                  Reintentar
+                </button>
+              </>
+            )}
+            {mensaje.estadoLocal !== "enviando" && (
+              <button onClick={() => alDescartar?.(mensaje.id)} className="text-zinc-400 hover:text-white hover:underline">
+                Descartar
+              </button>
+            )}
+          </div>
+        )}
 
         {/* VISUALIZADOR DE REACCIONES DEBAJO DEL MENSAJE */}
         {reaccionesVisibles.length > 0 && (

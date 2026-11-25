@@ -80,7 +80,14 @@ export default function ColumnaNavegacion<T extends Elemento>({
       <div className="flex-1 overflow-y-auto p-2">
         {cargando && <p className="text-gray-400 text-xs px-2 mt-2">Cargando {titulo.toLowerCase()}...</p>}
 
-        {error && <p className="text-rose-400 text-xs px-2 mt-2">No se pudieron cargar los {titulo.toLowerCase()}.</p>}
+        {error && elementos.length === 0 && (
+          <p className="text-rose-400 text-xs px-2 mt-2">No se pudieron cargar los {titulo.toLowerCase()}.</p>
+        )}
+
+        {/* Módulo local: sin servidor se sigue mostrando la última lista guardada en el equipo */}
+        {error && elementos.length > 0 && (
+          <p className="text-amber-300 text-xs px-2 mt-2">Sin conexión · mostrando lo guardado en este equipo.</p>
+        )}
 
         {!cargando && !error && elementos.length === 0 && (
           <p className="text-gray-400 text-xs px-2 mt-2">

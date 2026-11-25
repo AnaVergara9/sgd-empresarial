@@ -3,6 +3,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+# Módulo local (cola offline): llega como contexto adicional desde docker-compose
+COPY --from=local-module src /local-module/src
 ARG VITE_API_URL
 ARG VITE_SOCKET_URL
 ARG VITE_CLOUDINARY_CLOUD_NAME

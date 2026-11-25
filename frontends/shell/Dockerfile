@@ -3,6 +3,8 @@ WORKDIR /app/shell
 COPY shell/package*.json ./
 RUN npm ci
 COPY shell/ ./
+# Módulo local (perfil guardado para entrar sin conexión): contexto adicional desde docker-compose
+COPY --from=local-module src /local-module/src
 # Tailwind del shell necesita ver las clases de los microfrontends
 COPY mf-navegacion/src /app/mf-navegacion/src
 COPY mf-chat/src /app/mf-chat/src

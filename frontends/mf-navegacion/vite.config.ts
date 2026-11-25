@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, searchForWorkspaceRoot } from "vite";
 import react from "@vitejs/plugin-react";
 import { federation } from "@module-federation/vite";
 import path from "path";
@@ -23,9 +23,17 @@ export default defineConfig({
     }),
   ],
   resolve: {
-    alias: { "@": path.resolve(__dirname, "src") },
+    alias: {
+      "@": path.resolve(__dirname, "src"),
+      // Módulo local (caché sin conexión). En Docker se copia a /local-module, que es la misma ruta relativa.
+      "@local-module": path.resolve(__dirname, "../../local-module/src/index.ts"),
+    },
   },
   server: {
+    // Permite que el servidor de desarrollo sirva los archivos de local-module (fuera de esta carpeta)
+    fs: {
+      allow: [searchForWorkspaceRoot(process.cwd()), path.resolve(__dirname, "../../local-module")],
+    },
     port: 5174,
     strictPort: true, // si el 5174 está ocupado, falla en vez de cambiar de puerto
     origin: "http://localhost:5174",

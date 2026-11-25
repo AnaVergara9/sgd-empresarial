@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { guardarCache, leerCache } from "@local-module";
 import { listarCanales, listarSubcanales, listarHilos } from "./canales.api";
 
 const INTERVALO_MS = 4000; // temporal, hasta tener tiempo real con Socket.io
 
+const adaptar = <T,>(filas: any[]) => filas.map((f) => ({ ...f, creadoEn: f.creado_en })) as T[];
+
 // Lee canales, subcanales o hilos desde el backend nuevo y los refresca cada pocos segundos.
+// Con el módulo local guarda la última lista en el equipo: sin conexión se sigue viendo.
 export function useListaApi<T>(ruta: string[] | null) {
   const [datos, setDatos] = useState<T[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -11,6 +15,8 @@ export function useListaApi<T>(ruta: string[] | null) {
   const ultimaFirma = useRef("");
 
   const clave = ruta ? ruta.join("/") : null;
+  const claveActual = useRef(clave);
+  claveActual.current = clave;
 
   const recargar = useCallback(async () => {
     if (!clave) {
@@ -29,23 +35,37 @@ export function useListaApi<T>(ruta: string[] | null) {
       else if (tipo === "subcanales") filas = await listarSubcanales(padreId);
       else if (tipo === "hilos") filas = await listarHilos(padreId);
 
-      // Solo se actualiza la pantalla si algo cambió
+      if (claveActual.current !== clave) return; // el usuario ya cambió de selección
+
+      // Solo se actualiza la pantalla (y la copia local) si algo cambió
       const firma = JSON.stringify(filas);
       if (firma !== ultimaFirma.current) {
         ultimaFirma.current = firma;
-        setDatos(filas.map((f) => ({ ...f, creadoEn: f.creado_en })) as T[]);
+        setDatos(adaptar<T>(filas));
+        void guardarCache(`lista:${clave}`, filas);
       }
       setError(null);
     } catch (e: any) {
+      if (claveActual.current !== clave) return;
       setError(e instanceof Error ? e : new Error(e?.message || "Error al cargar"));
     } finally {
-      setCargando(false);
+      if (claveActual.current === clave) setCargando(false);
     }
   }, [clave]);
 
   useEffect(() => {
     ultimaFirma.current = "";
     setCargando(true);
+
+    // Muestra al instante la copia local; el servidor la reemplaza cuando responda.
+    if (clave) {
+      leerCache<any[]>(`lista:${clave}`).then((copia) => {
+        if (!copia || claveActual.current !== clave || ultimaFirma.current !== "") return;
+        setDatos(adaptar<T>(copia.valor));
+        setCargando(false);
+      });
+    }
+
     recargar();
 
     const temporizador = setInterval(() => {
@@ -53,7 +73,7 @@ export function useListaApi<T>(ruta: string[] | null) {
     }, INTERVALO_MS);
 
     return () => clearInterval(temporizador);
-  }, [recargar]);
+  }, [recargar, clave]);
 
   return { datos, cargando, error, recargar };
 }

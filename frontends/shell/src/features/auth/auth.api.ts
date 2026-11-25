@@ -2,6 +2,7 @@ import { auth, googleProvider } from "@/shared/firebase";
 import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
 import type { User } from "firebase/auth";
 import type { Rol, Usuario } from "@/types";
+import { esEstadoPermanente, guardarCache, leerCache } from "@local-module";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -11,9 +12,20 @@ async function pedir<T = any>(url: string, opciones?: RequestInit): Promise<T> {
     ...opciones,
   });
   const datos = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(datos.error || "Error en la petición");
+  if (!res.ok) throw new ErrorHttp(res.status, datos.error || "Error en la petición");
   return datos;
 }
+
+class ErrorHttp extends Error {
+  status: number;
+  constructor(status: number, mensaje: string) {
+    super(mensaje);
+    this.status = status;
+  }
+}
+
+// Clave del perfil guardado en el equipo (módulo local)
+const clavePerfil = (uid: string) => `perfil:${uid}`;
 
 // El backend devuelve snake_case y valores null; los componentes esperan los nombres de antes.
 function adaptarUsuario(fila: any): Usuario {
@@ -38,15 +50,31 @@ export function escucharSesion(alCambiar: (usuario: User | null) => void) {
  * Si es la primera vez que entra, el backend crea el registro inicial (todavía sin empresa).
  */
 export async function obtenerOCrearUsuario(usuario: User): Promise<Usuario> {
-  const fila = await pedir("/auth/sesion", {
-    method: "POST",
-    body: JSON.stringify({
-      uid: usuario.uid,
-      nombre: usuario.displayName || "Usuario",
-      email: usuario.email || "",
-    }),
-  });
-  return adaptarUsuario(fila);
+  try {
+    const fila = await pedir("/auth/sesion", {
+      method: "POST",
+      body: JSON.stringify({
+        uid: usuario.uid,
+        nombre: usuario.displayName || "Usuario",
+        email: usuario.email || "",
+      }),
+    });
+    // Módulo local: se guarda el perfil para poder entrar sin conexión la próxima vez
+    void guardarCache(clavePerfil(usuario.uid), fila);
+    return adaptarUsuario(fila);
+  } catch (error) {
+    // Si el servidor respondió con un rechazo (4xx), no se usa la copia local.
+    if (error instanceof ErrorHttp && esEstadoPermanente(error.status)) throw error;
+
+    // Sin conexión con el backend: Firebase ya recordó la sesión, así que se usa
+    // el último perfil guardado en este equipo para esta misma cuenta.
+    const copia = await leerCache<any>(clavePerfil(usuario.uid));
+    if (copia) {
+      console.warn("Sin conexión con el servidor: usando el perfil guardado en este equipo");
+      return adaptarUsuario(copia.valor);
+    }
+    throw error;
+  }
 }
 
 /**

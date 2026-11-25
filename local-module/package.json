@@ -1,0 +1,12 @@
+{
+  "name": "@sgd/local-module",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cola local (IndexedDB) para enviar mensajes y archivos cuando no hay conexión",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  }
+}
