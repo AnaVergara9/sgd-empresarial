@@ -1,13 +1,65 @@
 
 import { Usuario, Mensaje as TipoMensaje, ArchivoAdjunto } from "@/types";
-import { useState, useEffect, useRef } from "react";
-import { rutaMensajes } from "../chat.api";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { rutaMensajes, colaMensajes, type MensajePendiente } from "../chat.api";
 import { enviarMensaje as enviarMensajeApi, escucharMensajes } from "../chat.api";
 
 import Mensaje from "./Mensaje";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
 import DrivePicker from "./DrivePicker";
+
+// Convierte un envío de la cola local en un mensaje que se puede dibujar.
+// El adjunto se muestra desde el propio navegador con una URL blob: (no necesita internet).
+function pendienteAMensaje(p: MensajePendiente, urls: string[]): TipoMensaje {
+  const fecha = new Date(p.creadoEn);
+  const archivos: TipoMensaje["archivos"] = [];
+
+  if (p.datos.archivoSubido) {
+    archivos.push(p.datos.archivoSubido);
+  } else if (p.archivo) {
+    const url = URL.createObjectURL(p.archivo.blob);
+    urls.push(url);
+    archivos.push({
+      nombre: p.archivo.nombre,
+      url,
+      tipo: p.archivo.tipo,
+      tamano: `${Math.max(1, Math.round(p.archivo.tamano / 1024))} KB`,
+    });
+  }
+  // Enlaces de Google Drive del mensaje pendiente
+  archivos.push(...(p.datos.archivosExtra ?? []));
+
+  return {
+    id: p.id,
+    idCliente: p.id,
+    texto: p.datos.texto,
+    autorId: p.datos.autorId,
+    autorNombre: p.datos.autorNombre,
+    autorAvatar: p.datos.autorAvatar,
+    autorAvatarColor: p.datos.autorAvatarColor,
+    fecha: {
+      toDate: () => fecha,
+      toMillis: () => fecha.getTime(),
+      seconds: Math.floor(fecha.getTime() / 1000),
+      nanoseconds: 0,
+    },
+    archivos,
+    reacciones: {},
+    respondidoA: p.datos.respondidoA,
+    estadoLocal: p.estado,
+    errorLocal: p.ultimoError,
+  };
+}
+
+// Funciones estables (no cambian entre renders) para no romper el memo de <Mensaje>.
+const reintentarPendiente = (id: string) => {
+  colaMensajes.reintentar(id).catch((e) => console.error("No se pudo reintentar:", e));
+};
+const descartarPendiente = (id: string) => {
+  if (!window.confirm("¿Descartar este mensaje? No se enviará.")) return;
+  colaMensajes.descartar(id).catch((e) => console.error("No se pudo descartar:", e));
+};
 
 interface Props {
   empresaId: string;
@@ -25,6 +77,7 @@ export default function ChatArea({
   datosUsuario,
 }: Props) {
   const [mensajes, setMensajes] = useState<TipoMensaje[]>([]);
+  const [pendientes, setPendientes] = useState<TipoMensaje[]>([]);
   const [errorCarga, setErrorCarga] = useState(false);
   const [texto, setTexto] = useState("");
   const [archivo, setArchivo] = useState<File | null>(null);
@@ -33,22 +86,76 @@ export default function ChatArea({
   const [enviando, setEnviando] = useState(false);
 
   const finalRef = useRef<HTMLDivElement>(null);
+  const urlsLocalesRef = useRef<string[]>([]);
 
   const ruta = rutaMensajes(empresaId, canalId, subcanalId, hiloId);
+  const uid = datosUsuario.uid;
 
   // Escuchar los últimos mensajes en tiempo real
   useEffect(() => {
     if (!empresaId || !canalId || !subcanalId || !hiloId) return;
     setErrorCarga(false);
+    setMensajes([]); // no mostrar los mensajes del hilo anterior mientras carga este
 
-    return escucharMensajes(ruta, setMensajes, (error) => {
-      console.error("Error al cargar mensajes:", error);
-      setErrorCarga(true);
-    });
-  }, [empresaId, canalId, subcanalId, hiloId, ruta]);
+    return escucharMensajes(
+      ruta,
+      (lista) => {
+        setMensajes(lista);
+        setErrorCarga(false);
+      },
+      (error) => {
+        console.error("Error al cargar mensajes:", error);
+        setErrorCarga(true);
+      },
+      // Al (re)conectar con el servidor se envía lo que quedó en la cola local
+      () => void colaMensajes.sincronizar(uid)
+    );
+  }, [empresaId, canalId, subcanalId, hiloId, ruta, uid]);
+
+  // Módulo local: sincroniza la cola de esta cuenta al abrir, al volver la red y cada 15 s
+  useEffect(() => colaMensajes.iniciar(uid), [uid]);
+
+  // Módulo local: muestra los mensajes de esta cuenta que siguen guardados en el navegador
+  useEffect(() => {
+    let consulta = 0;
+
+    const refrescar = async () => {
+      const numero = ++consulta;
+      try {
+        const lista = await colaMensajes.listar(uid, hiloId);
+        if (numero !== consulta) return; // ya llegó una consulta más nueva
+        const urls: string[] = [];
+        const convertidos = lista.map((p) => pendienteAMensaje(p, urls));
+        urlsLocalesRef.current.forEach((u) => URL.revokeObjectURL(u));
+        urlsLocalesRef.current = urls;
+        setPendientes(convertidos);
+      } catch (error) {
+        console.error("No se pudo leer la cola local:", error);
+      }
+    };
+
+    refrescar();
+    const dejarDeEscuchar = colaMensajes.suscribir(refrescar);
+
+    return () => {
+      consulta++;
+      dejarDeEscuchar();
+      urlsLocalesRef.current.forEach((u) => URL.revokeObjectURL(u));
+      urlsLocalesRef.current = [];
+      setPendientes([]);
+    };
+  }, [uid, hiloId]);
+
+  // Mensajes del servidor + pendientes que el servidor todavía no ha confirmado
+  const mensajesVisibles = useMemo(() => {
+    const confirmados = new Set(mensajes.map((m) => m.idCliente).filter(Boolean));
+    return [...mensajes, ...pendientes.filter((p) => !confirmados.has(p.id))];
+  }, [mensajes, pendientes]);
+
+  const cantidadPendientes = pendientes.filter((p) => p.estadoLocal !== "error").length;
 
   // Autoscroll hacia abajo solo cuando llega un mensaje nuevo (no al reaccionar a uno viejo)
-  const ultimoId = mensajes[mensajes.length - 1]?.id;
+  const ultimoId = mensajesVisibles[mensajesVisibles.length - 1]?.id;
   useEffect(() => {
     finalRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [ultimoId]);
@@ -59,15 +166,16 @@ export default function ChatArea({
 
     setEnviando(true);
     try {
+      // Queda guardado en el navegador aunque no haya conexión; el módulo local lo envía después
       await enviarMensajeApi(ruta, datosUsuario, texto, archivo, mensajeCitado, archivosDrive);
       setTexto("");
       setArchivo(null);
       setArchivosDrive([]);
       setMensajeCitado(null);
     } catch (error) {
-      // No limpiamos el texto para que el usuario pueda reintentar
-      console.error("Error al enviar mensaje:", error);
-      alert("No se pudo enviar el mensaje. Revisa tu conexión o el archivo adjunto e inténtalo de nuevo.");
+      // Solo falla si el navegador no pudo guardar el mensaje (por ejemplo, sin espacio)
+      console.error("Error al guardar el mensaje:", error);
+      alert("No se pudo guardar el mensaje en este equipo. Inténtalo de nuevo.");
     } finally {
       setEnviando(false);
     }
@@ -82,28 +190,40 @@ export default function ChatArea({
              backgroundImage: `radial-gradient(rgba(255,255,255,0.03) 1px, transparent 0)`,
              backgroundSize: '24px 24px'
            }}>
-        {errorCarga ? (
-          <div className="h-full flex items-center justify-center text-rose-400 text-sm">
-            <p>No se pudieron cargar los mensajes.</p>
+        {errorCarga && (
+          <div className="sticky top-0 z-10 rounded-md bg-amber-500/15 border border-amber-500/30 px-3 py-2 text-xs text-amber-300">
+            Sin conexión con el servidor. Ves los mensajes guardados en este equipo; lo que envíes se enviará al reconectar.
           </div>
-        ) : mensajes.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-zinc-500 text-sm">
-            <span className="text-4xl mb-2">💬</span>
-            <p>Este es el inicio de la conversación. ¡Escribe el primer mensaje!</p>
-          </div>
+        )}
+        {mensajesVisibles.length === 0 ? (
+          !errorCarga && (
+            <div className="h-full flex flex-col items-center justify-center text-zinc-500 text-sm">
+              <span className="text-4xl mb-2">💬</span>
+              <p>Este es el inicio de la conversación. ¡Escribe el primer mensaje!</p>
+            </div>
+          )
         ) : (
-          mensajes.map((m) => (
+          mensajesVisibles.map((m) => (
             <Mensaje
               key={m.id}
               mensaje={m}
               ruta={ruta}
               datosUsuario={datosUsuario}
               alResponder={setMensajeCitado}
+              alReintentar={reintentarPendiente}
+              alDescartar={descartarPendiente}
             />
           ))
         )}
         <div ref={finalRef} />
       </div>
+
+      {/* MÓDULO LOCAL: mensajes guardados en este equipo esperando conexión */}
+      {cantidadPendientes > 0 && (
+        <div className="px-4 py-1.5 bg-[#2b2d31] border-t border-white/5 text-xs text-amber-300">
+          ⏳ {cantidadPendientes === 1 ? "1 mensaje pendiente guardado" : `${cantidadPendientes} mensajes pendientes guardados`} en este equipo. Se enviarán al recuperar la conexión.
+        </div>
+      )}
 
       {/* NOTIFICACIÓN DE ARCHIVO SELECCIONADO O CITA */}
       {archivo && (
@@ -156,7 +276,7 @@ export default function ChatArea({
             disabled={enviando}
             className="bg-[#5865f2] hover:bg-[#4752c4] text-white font-medium px-4 h-8 rounded transition-colors text-xs"
           >
-            {enviando ? "Enviando..." : "Enviar"}
+            {enviando ? "Guardando..." : "Enviar"}
           </Button>
         </div>
       </div>

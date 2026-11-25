@@ -63,4 +63,9 @@
     archivos: ArchivoAdjunto[];
     reacciones: Reacciones;
     respondidoA?: { autorNombre: string , texto: string;} | null;
+    // UUID generado por el módulo local; permite reconocer el mensaje cuando el servidor lo confirma
+    idCliente?: string;
+    // Solo en mensajes que aún están en la cola local (sin confirmar por el servidor)
+    estadoLocal?: "pendiente" | "enviando" | "error";
+    errorLocal?: string | null;
   }

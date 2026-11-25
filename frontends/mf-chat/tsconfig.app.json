@@ -9,7 +9,8 @@
     "skipLibCheck": true,
     "paths": {
       "@/*": ["./src/*"],
-      "@sgd/google-drive-local": ["../../local-module/index.d.ts"]
+      "@sgd/google-drive-local": ["../../local-module/index.d.ts"],
+      "@local-module": ["../../local-module/src/index.ts"]
     },
 
     /* Bundler mode */

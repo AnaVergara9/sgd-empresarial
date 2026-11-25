@@ -34,7 +34,7 @@ export async function listarMensajes(req: Request, res: Response) {
 
 // Guarda un mensaje nuevo en un hilo.
 export async function enviarMensaje(req: Request, res: Response) {
-  const { texto, autorId, autorNombre, autorAvatar, autorAvatarColor, archivos, respondidoA } = req.body;
+  const { texto, autorId, autorNombre, autorAvatar, autorAvatarColor, archivos, respondidoA, idCliente } = req.body;
   const { hiloId } = req.params;
 
   if (!esUuid(hiloId)) {
@@ -45,14 +45,25 @@ export async function enviarMensaje(req: Request, res: Response) {
     return res.status(400).json({ error: 'Faltan autorId o autorNombre' });
   }
 
+  if (idCliente !== undefined && !esUuid(idCliente)) {
+    return res.status(400).json({ error: "idCliente no válido" });
+  }
+
   const hayArchivos = Array.isArray(archivos) && archivos.length > 0;
   if (!String(texto || '').trim() && !hayArchivos) {
     return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
   }
 
   try {
+    // Reintento de un envío que ya se guardó (la respuesta se perdió por la conexión).
+    if (idCliente) {
+      const existente = await Mensaje.findOne({ idCliente }).lean();
+      if (existente) return res.status(200).json(existente);
+    }
+
     const mensaje = await Mensaje.create({
       hiloId,
+      idCliente: idCliente || undefined,
       texto: String(texto || ''),
       autorId,
       autorNombre,
@@ -67,7 +78,12 @@ export async function enviarMensaje(req: Request, res: Response) {
 
     // Respondemos al usuario que envió el mensaje.
     res.status(201).json(mensaje);
-  } catch (error) {
+  } catch (error: any) {
+    // Dos reintentos simultáneos: el índice único rechaza el segundo.
+    if (error?.code === 11000 && idCliente) {
+      const existente = await Mensaje.findOne({ idCliente }).lean();
+      if (existente) return res.status(200).json(existente);
+    }
     console.error(error);
     res.status(500).json({ error: 'Error al enviar el mensaje' });
   }

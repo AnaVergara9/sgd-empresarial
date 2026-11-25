@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, searchForWorkspaceRoot } from "vite";
 import react from "@vitejs/plugin-react";
 import { federation } from "@module-federation/vite";
 import path from "path";
@@ -26,7 +26,19 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
-    resolve: { alias: { "@": path.resolve(__dirname, "src") } },
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "src"),
+        // Módulo local (perfil guardado para entrar sin conexión). En Docker se copia a /local-module.
+        "@local-module": path.resolve(__dirname, "../../local-module/src/index.ts"),
+      },
+    },
+    server: {
+      // Permite que el servidor de desarrollo sirva los archivos de local-module (fuera de esta carpeta)
+      fs: {
+        allow: [searchForWorkspaceRoot(process.cwd()), path.resolve(__dirname, "../../local-module")],
+      },
+    },
     build: { target: "esnext" },
   };
 });

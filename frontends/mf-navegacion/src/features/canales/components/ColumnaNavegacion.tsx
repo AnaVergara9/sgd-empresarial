@@ -1,4 +1,5 @@
-import type { MouseEvent } from "react";
+import { useState, type MouseEvent } from "react";
+import FormularioCrear from "./FormularioCrear";
 
 interface Elemento {
   id: string;
@@ -40,16 +41,8 @@ export default function ColumnaNavegacion<T extends Elemento>({
   alEliminar,
   mensajeConfirmacion,
 }: PropiedadesColumnaNavegacion<T>) {
-  const manejarCrear = async () => {
-    const nombre = prompt(`Nombre del nuevo ${nombreElemento}:`);
-    if (!nombre?.trim()) return;
-    try {
-      await alCrear(nombre.trim());
-    } catch (err) {
-      console.error(`Error al crear ${nombreElemento}:`, err);
-      alert(`No se pudo crear el ${nombreElemento}.`);
-    }
-  };
+  // Muestra u oculta el campo para crear dentro de la columna
+  const [creando, setCreando] = useState(false);
 
   const manejarEliminar = async (e: MouseEvent, elemento: T) => {
     e.stopPropagation(); // Evita que se seleccione el elemento al dar clic en la papelera
@@ -68,9 +61,17 @@ export default function ColumnaNavegacion<T extends Elemento>({
         <h2 className="text-white font-semibold text-sm uppercase tracking-wide">{titulo}</h2>
         {esAdministrador && (
           <button
-            onClick={manejarCrear}
-            className="text-gray-400 hover:text-white text-xl leading-none transition-colors"
-            title={`Crear ${nombreElemento}`}
+            type="button"
+            onClick={() => setCreando((abierto) => !abierto)}
+            // Mientras el campo está abierto, el clic en + lo cierra; onMouseDown evita
+            // que el campo se cierre solo por perder el foco y se vuelva a abrir.
+            onMouseDown={(e) => e.preventDefault()}
+            className={`w-6 h-6 flex items-center justify-center rounded text-lg leading-none transition-all outline-none focus-visible:ring-2 focus-visible:ring-[#5865f2] ${
+              creando ? "rotate-45 text-white bg-white/10" : "text-gray-400 hover:text-white hover:bg-white/10"
+            }`}
+            title={creando ? "Cancelar" : `Crear ${nombreElemento}`}
+            aria-label={creando ? "Cancelar" : `Crear ${nombreElemento}`}
+            aria-expanded={creando}
           >
             +
           </button>
@@ -78,11 +79,28 @@ export default function ColumnaNavegacion<T extends Elemento>({
       </div>
 
       <div className="flex-1 overflow-y-auto p-2">
+        {creando && esAdministrador && (
+          <FormularioCrear
+            nombreElemento={nombreElemento}
+            icono={icono}
+            nombresExistentes={elementos.map((e) => e.nombre)}
+            alCrear={alCrear}
+            alCerrar={() => setCreando(false)}
+          />
+        )}
+
         {cargando && <p className="text-gray-400 text-xs px-2 mt-2">Cargando {titulo.toLowerCase()}...</p>}
 
-        {error && <p className="text-rose-400 text-xs px-2 mt-2">No se pudieron cargar los {titulo.toLowerCase()}.</p>}
+        {error && elementos.length === 0 && (
+          <p className="text-rose-400 text-xs px-2 mt-2">No se pudieron cargar los {titulo.toLowerCase()}.</p>
+        )}
 
-        {!cargando && !error && elementos.length === 0 && (
+        {/* Módulo local: sin servidor se sigue mostrando la última lista guardada en el equipo */}
+        {error && elementos.length > 0 && (
+          <p className="text-amber-300 text-xs px-2 mt-2">Sin conexión · mostrando lo guardado en este equipo.</p>
+        )}
+
+        {!cargando && !error && !creando && elementos.length === 0 && (
           <p className="text-gray-400 text-xs px-2 mt-2">
             {esAdministrador
               ? `No hay ${titulo.toLowerCase()}. Crea el primero con +`

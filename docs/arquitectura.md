@@ -50,7 +50,7 @@ El diagrama representa la composición local descrita por `docker-compose.yml` y
 | `frontends/shell` | Aplicación principal, rutas, sesión y composición de pantallas. |
 | `frontends/mf-navegacion` | Componentes para explorar y administrar canales, subcanales e hilos. |
 | `frontends/mf-chat` | Interfaz de conversación, mensajes, respuestas, reacciones y adjuntos. |
-| `local-module` (`@sgd/google-drive-local`) | Paquete JavaScript local reutilizable que carga Google Identity Services, solicita permiso Drive de solo lectura, lista archivos y adapta enlaces para adjuntarlos al chat. Se importa desde `mf-chat` mediante un alias Vite/TypeScript; no es un servicio desplegable aparte. |
+| `local-module` | Paquete local reutilizable con dos partes: **Google Drive** (`index.js`, alias `@sgd/google-drive-local`), que carga Google Identity Services, solicita permiso Drive de solo lectura, lista archivos y adapta enlaces para adjuntarlos al chat; y **uso sin conexión** (`src/`, alias `@local-module`), con la cola de envíos y la caché en IndexedDB que usan `shell`, `mf-navegacion` y `mf-chat`. No es un servicio desplegable aparte. |
 | Google Drive API | El navegador autoriza acceso de solo lectura, lista archivos y adjunta al mensaje su enlace y metadatos. El archivo no se copia al servidor. |
 | `frontends/mf-videollamada` | Interfaz independiente de videollamada, integrada en el shell cuando hay un hilo seleccionado. |
 | `gateway` | Entrada HTTP en el puerto 4000; enruta `/auth`, `/empresas`, `/canales`, `/subcanales`, `/hilos`, `/mensajes` y `/archivos`. |
@@ -121,7 +121,7 @@ Si el dominio de hosting cambia, también hay que agregar ese origen a OAuth y r
 
 ## Construcción del microfrontend de chat
 
-El contexto Docker de `mf-chat` es la raíz del repositorio para que el Dockerfile pueda copiar tanto `frontends/mf-chat` como `local-module`. En desarrollo, `vite.config.ts` expone el alias `@sgd/google-drive-local` y permite que Vite sirva el código local fuera de la carpeta del microfrontend. Si se cambia el nombre o la ubicación del módulo, actualizar ambos puntos de resolución y `docker-compose.yml`.
+El contexto Docker de `mf-chat` es la raíz del repositorio para que el Dockerfile pueda copiar tanto `frontends/mf-chat` como `local-module`. En desarrollo, `vite.config.ts` expone los alias `@sgd/google-drive-local` y `@local-module` y permite que Vite sirva el código local fuera de la carpeta del microfrontend. Si se cambia el nombre o la ubicación del módulo, actualizar ambos puntos de resolución y `docker-compose.yml`. `shell` y `mf-navegacion` conservan su propia carpeta como contexto y reciben `local-module` como `additional_contexts`.
 
 Para compilar `mf-chat` directamente desde Windows, las dependencias deben estar instaladas; luego se usa `npm run build` desde `frontends/mf-chat`. La compilación genera el remoto `dist/remoteEntry.js` y sus archivos estáticos.
 
@@ -143,6 +143,26 @@ Para compilar `mf-chat` directamente desde Windows, las dependencias deben estar
 Para habilitar la integración, crear un OAuth Client ID de tipo **Web application** en Google Cloud, habilitar Google Drive API, añadir el origen web usado por la aplicación (por ejemplo `http://localhost:5173`) a los orígenes autorizados y definir `VITE_GOOGLE_CLIENT_ID`. En producción se agrega también el dominio HTTPS. El Client ID no es una contraseña; no se deben guardar tokens en el repositorio.
 
 Eventos de sala que implementa el servidor: `unirse-hilo` y `salir-hilo`, con el identificador UUID del hilo. El cliente escucha `nuevo-mensaje` y `mensaje-actualizado`. El envío y las reacciones siguen usando HTTP; Socket.IO avisa a los demás participantes. En Docker Compose, el cliente se conecta a `http://localhost:4004` (configurable mediante `VITE_SOCKET_URL`), que es el puerto publicado por Nginx. El cliente está configurado para WebSocket, así evita necesitar sesiones persistentes para long-polling.
+
+## Módulo local: envío sin conexión
+
+`local-module` permite enviar mensajes y adjuntos sin conexión. `mf-chat` ya no envía directo al gateway. Primero **guarda el envío en IndexedDB** (la base de datos del navegador) y luego lo sincroniza:
+
+1. La persona envía un mensaje con o sin archivo. Queda guardado en el navegador con el estado "pendiente" y aparece de inmediato en el hilo; el adjunto se abre desde una URL `blob:` local.
+2. El módulo intenta enviarlo: sube el archivo a `POST /archivos` y crea el mensaje en `POST /hilos/:hiloId/mensajes`.
+3. Si no hay red, el gateway no responde o hay un error 5xx, el mensaje sigue pendiente. Se reintenta cuando vuelve la red, cuando Socket.IO se reconecta y cada 15 segundos.
+4. Cuando el servidor confirma el mensaje, este llega por Socket.IO con su `idCliente`, se reconoce como el pendiente y se borra de la cola.
+
+Decisiones:
+
+- **Idempotencia:** cada envío lleva un UUID (`idCliente`). `chat-service` tiene un índice único sobre ese campo y, si llega un reintento de un mensaje ya guardado, devuelve el existente en lugar de duplicarlo.
+- **Separación por cuenta:** la cola se guarda con el `uid`. Si otra cuenta inicia sesión en el mismo equipo, no ve ni envía los pendientes de la primera.
+- **Desacople:** el módulo no conoce el chat ni React; recibe una función `enviar`. Así puede reutilizarse en otros microfrontends.
+- **Límite:** la cola vive en el navegador de ese equipo. Nadie más ve el mensaje hasta que se sincroniza, igual que en WhatsApp o Slack.
+
+Además, el módulo tiene una **caché de lectura**. `mf-chat` guarda los últimos 50 mensajes de cada hilo abierto y `mf-navegacion` guarda las listas de canales, subcanales e hilos, y `shell` guarda el perfil del usuario para que recargar sin conexión no lo devuelva al login (Firebase ya conserva la sesión). Al abrir una pantalla se muestra primero la copia local y luego la respuesta del servidor; sin conexión se sigue viendo lo que ya se había cargado, como en WhatsApp.
+
+Detalle, garantías y pasos de prueba en `local-module/README.md`.
 
 ## Videollamadas implementadas como microfrontend y microservicio
 
@@ -180,6 +200,7 @@ El cliente usa `VITE_VIDEOLLAMADA_URL` (por defecto `http://localhost:4006`) y u
 | Actualización de mensajes en vivo | Socket.IO implementado; sincroniza el historial por HTTP al entrar y reconectar. |
 | Videollamadas en canales/hilos | Microfrontend y microservicio propios; videollamada WebRTC en malla de hasta ocho personas en el hilo seleccionado. TURN y SFU quedan fuera del alcance actual. |
 | Módulo local de Google Drive | Implementado como paquete `local-module` e integrado en `mf-chat`: OAuth de solo lectura, lista reciente y adjunta enlaces. Requiere configurar el OAuth Client ID, autorizar los dominios y añadir como usuarios de prueba las cuentas que usarán Drive mientras OAuth esté en modo de prueba. |
+| Módulo local (uso sin conexión) | Implementado en `local-module`: cola de envíos (mensajes y archivos) y caché de lectura (mensajes y navegación) en IndexedDB; se sincroniza al reconectar. Ver la sección "Módulo local: envío sin conexión". |
 | Balanceo de cargas del chat | Nginx con dos réplicas de `chat-service` y estrategia `least_conn`; Redis comparte los eventos entre réplicas. |
 | Despliegue del backend en AWS | No desplegado. Hay una topología objetivo documentada; faltan cuenta/perfil AWS, imágenes ECR, redes, servicios de datos, secretos, dominio y aprovisionamiento ECS. |
 | Hosting de microfrontend | No hay un hosting público activo. Existe una plantilla AWS para S3 privado + CloudFront y un script para `mf-chat`, pero no se ha ejecutado. La captura compartida corresponde a CrazyHost; su plan gratuito indica que Node.js no está incluido y solo podría servir archivos estáticos. |
@@ -222,3 +243,5 @@ Para trabajar en equipo, cada integrante crea una rama, realiza commits pequeño
 - `frontends/mf-videollamada/src/components/VideoLlamada.tsx`: captura de cámara/micrófono, conexión WebRTC y controles de llamada.
 - `services/videollamada-service/src/socket.ts`: salas y señalización Socket.IO del microservicio de videollamada.
 - `frontends/shell/src/App.tsx`: rutas de la aplicación principal.
+- `local-module/src/cola.ts`: cola de envíos sin conexión (IndexedDB, reintentos, bloqueo entre pestañas).
+- `local-module/README.md`: funcionamiento, garantías y pruebas del módulo local.

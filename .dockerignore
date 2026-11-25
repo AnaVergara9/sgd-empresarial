@@ -1,0 +1,16 @@
+# Contexto de Docker en la raíz del repositorio.
+# Hoy solo lo usa mf-chat (docker-compose.yml: context: .), que necesita su
+# carpeta y local-module. Se excluye todo y se permite solo lo necesario, así la
+# construcción no copia node_modules, legacy/.next, .git ni archivos con claves.
+# Si otro servicio empieza a construir desde la raíz, agrega aquí su carpeta con "!".
+
+*
+
+!local-module
+!frontends/mf-chat
+
+# Dentro de lo permitido, tampoco se copian dependencias, compilados ni claves
+**/node_modules
+**/dist
+**/.env
+**/.env.*
