@@ -6,6 +6,9 @@ import { createAdapter } from "@socket.io/redis-adapter";
 const PREFIJO_SALA_LLAMADA = "llamada:";
 const MAX_PARTICIPANTES = 8;
 type ResultadoUnion = { ok: true; participantes: string[] } | { ok: false; error: string };
+type MiembroHilo = { uid: string; nombre: string; cargo?: string; ocupado?: boolean };
+type ResultadoInicio = { ok: true; invitados: string[]; ocupados: MiembroHilo[] } | { ok: false; error: string };
+type EstadoLlamada = { ownerUid: string; uidsPermitidos: Set<string> };
 
 function esUuid(valor: unknown): valor is string {
   return typeof valor === "string" &&
@@ -13,6 +16,7 @@ function esUuid(valor: unknown): valor is string {
 }
 
 export async function inicializarSenalizacion(server: HttpServer) {
+  const llamadasActivas = new Map<string, EstadoLlamada>();
   const io = new Server(server, {
     cors: {
       origin: process.env.SOCKET_CORS_ORIGIN
@@ -32,13 +36,116 @@ export async function inicializarSenalizacion(server: HttpServer) {
     console.log("Adaptador Redis conectado para señalización de llamadas");
   }
 
+  const obtenerUidsOcupados = async (uids: string[]) => {
+    const ocupados = new Set<string>();
+    if (uids.length === 0) return ocupados;
+    for (const hiloActivo of llamadasActivas.keys()) {
+      const conectadosEnLlamada = await io.in(`${PREFIJO_SALA_LLAMADA}${hiloActivo}`).fetchSockets();
+      for (const persona of conectadosEnLlamada) {
+        if (typeof persona.data.uid === "string" && uids.includes(persona.data.uid)) ocupados.add(persona.data.uid);
+      }
+    }
+    return ocupados;
+  };
+
   io.on("connection", (socket) => {
-    socket.on("unirse-hilo", (hiloId: unknown) => {
-      if (esUuid(hiloId)) socket.join(`hilo:${hiloId}`);
+    socket.on("unirse-hilo", (datos: unknown) => {
+      const entrada = typeof datos === "string" ? { hiloId: datos } : datos as { hiloId?: unknown; uid?: unknown; nombre?: unknown; cargo?: unknown };
+      if (!esUuid(entrada?.hiloId) || typeof entrada.uid !== "string" || !entrada.uid.trim()) return;
+      socket.data.uid = entrada.uid.trim();
+      socket.data.nombre = typeof entrada.nombre === "string" && entrada.nombre.trim() ? entrada.nombre.trim() : "Usuario";
+      socket.data.cargo = typeof entrada.cargo === "string" ? entrada.cargo : "";
+      socket.data.hiloId = entrada.hiloId;
+      socket.join(`hilo:${entrada.hiloId}`);
     });
 
     socket.on("salir-hilo", (hiloId: unknown) => {
-      if (esUuid(hiloId)) socket.leave(`hilo:${hiloId}`);
+      if (esUuid(hiloId)) {
+        socket.leave(`hilo:${hiloId}`);
+        if (socket.data.hiloId === hiloId) socket.data.hiloId = undefined;
+      }
+    });
+
+    socket.on("llamada:miembros", async (hiloId: unknown, confirmar?: (resultado: { ok: boolean; miembros?: MiembroHilo[]; error?: string }) => void) => {
+      if (!esUuid(hiloId) || socket.data.hiloId !== hiloId || !socket.rooms.has(`hilo:${hiloId}`)) {
+        confirmar?.({ ok: false, error: "No estás conectado a este hilo" });
+        return;
+      }
+      try {
+        const sockets = await io.in(`hilo:${hiloId}`).fetchSockets();
+        const miembros = new Map<string, MiembroHilo>();
+        const uids = [...new Set(sockets.map((persona) => persona.data.uid).filter((uid): uid is string => typeof uid === "string" && !!uid && uid !== socket.data.uid))];
+        const ocupados = await obtenerUidsOcupados(uids);
+        for (const conectado of sockets) {
+          const uid = conectado.data.uid;
+          if (typeof uid !== "string" || !uid || uid === socket.data.uid || miembros.has(uid)) continue;
+          miembros.set(uid, { uid, nombre: conectado.data.nombre || "Usuario", cargo: conectado.data.cargo || "", ocupado: ocupados.has(uid) });
+        }
+        confirmar?.({ ok: true, miembros: [...miembros.values()] });
+      } catch (error) {
+        console.error("No se pudieron consultar los miembros del hilo:", error);
+        confirmar?.({ ok: false, error: "No se pudieron cargar las personas del hilo" });
+      }
+    });
+
+    socket.on("llamada:iniciar", async (datos: { hiloId?: unknown; invitados?: unknown }, confirmar?: (resultado: ResultadoInicio) => void) => {
+      const hiloId = datos?.hiloId;
+      const invitados = Array.isArray(datos?.invitados) ? [...new Set(datos.invitados.filter((uid): uid is string => typeof uid === "string" && uid.trim()).map((uid) => uid.trim()))] : [];
+      if (!esUuid(hiloId) || socket.data.hiloId !== hiloId || !socket.rooms.has(`hilo:${hiloId}`) || typeof socket.data.uid !== "string") {
+        confirmar?.({ ok: false, error: "No estás conectado a este hilo" });
+        return;
+      }
+      if (llamadasActivas.has(hiloId)) {
+        confirmar?.({ ok: false, error: "Ya hay una videollamada activa en este hilo" });
+        return;
+      }
+      if (invitados.length === 0 || invitados.length > MAX_PARTICIPANTES - 1 || invitados.includes(socket.data.uid)) {
+        confirmar?.({ ok: false, error: `Selecciona entre 1 y ${MAX_PARTICIPANTES - 1} personas` });
+        return;
+      }
+
+      try {
+        const socketsHilo = await io.in(`hilo:${hiloId}`).fetchSockets();
+        const miembrosConectados = new Set(socketsHilo.map((persona) => persona.data.uid).filter((uid): uid is string => typeof uid === "string"));
+        if (invitados.some((uid) => !miembrosConectados.has(uid))) {
+          confirmar?.({ ok: false, error: "Una de las personas seleccionadas ya no está conectada al hilo" });
+          return;
+        }
+
+        const uidsOcupados = await obtenerUidsOcupados(invitados);
+
+        const personasOcupadas = [...new Set(socketsHilo
+          .filter((persona) => uidsOcupados.has(persona.data.uid))
+          .map((persona) => persona.data.uid))]
+          .map((uid) => socketsHilo.find((persona) => persona.data.uid === uid))
+          .filter((persona): persona is (typeof socketsHilo)[number] => !!persona)
+          .map((persona) => ({ uid: persona.data.uid as string, nombre: persona.data.nombre || "Usuario", cargo: persona.data.cargo || "" }));
+        const invitadosDisponibles = invitados.filter((uid) => !uidsOcupados.has(uid));
+        if (invitadosDisponibles.length === 0) {
+          const nombres = personasOcupadas.map((persona) => persona.nombre).join(", ");
+          confirmar?.({ ok: false, error: `${nombres || "La persona seleccionada"} ${personasOcupadas.length === 1 ? "ya está" : "ya están"} en otra videollamada` });
+          return;
+        }
+
+        const permitidos = new Set([socket.data.uid, ...invitadosDisponibles]);
+        llamadasActivas.set(hiloId, { ownerUid: socket.data.uid, uidsPermitidos: permitidos });
+        await socket.join(`${PREFIJO_SALA_LLAMADA}${hiloId}`);
+        confirmar?.({ ok: true, invitados: invitadosDisponibles, ocupados: personasOcupadas });
+
+        for (const persona of socketsHilo) {
+          if (invitadosDisponibles.includes(persona.data.uid)) {
+            io.to(persona.id).emit("llamada:entrante", {
+              hiloId,
+              socketId: socket.id,
+              nombre: socket.data.nombre,
+            });
+          }
+        }
+      } catch (error) {
+        llamadasActivas.delete(hiloId);
+        console.error("No se pudo iniciar la videollamada:", error);
+        confirmar?.({ ok: false, error: "No se pudo iniciar la videollamada" });
+      }
     });
 
     socket.on("llamada:unirse", async (hiloId: unknown, confirmar?: (resultado: ResultadoUnion) => void) => {
@@ -49,7 +156,16 @@ export async function inicializarSenalizacion(server: HttpServer) {
 
       const sala = `${PREFIJO_SALA_LLAMADA}${hiloId}`;
       try {
+        const llamada = llamadasActivas.get(hiloId);
+        if (!llamada || socket.data.hiloId !== hiloId || typeof socket.data.uid !== "string" || !llamada.uidsPermitidos.has(socket.data.uid)) {
+          confirmar?.({ ok: false, error: "El dueño de la llamada no te invitó" });
+          return;
+        }
         const conectados = await io.in(sala).fetchSockets();
+        if (conectados.some((persona) => persona.data.uid === socket.data.uid && persona.id !== socket.id)) {
+          confirmar?.({ ok: false, error: "Esta cuenta ya está en la llamada desde otra ventana" });
+          return;
+        }
         const participantes = conectados.map((persona) => persona.id).filter((id) => id !== socket.id);
         if (!socket.rooms.has(sala) && conectados.length >= MAX_PARTICIPANTES) {
           confirmar?.({ ok: false, error: `La llamada admite hasta ${MAX_PARTICIPANTES} participantes` });
@@ -63,11 +179,6 @@ export async function inicializarSenalizacion(server: HttpServer) {
         console.error("No se pudo unir a la sala de llamada:", error);
         confirmar?.({ ok: false, error: "No se pudo entrar a la llamada" });
       }
-    });
-
-    socket.on("llamada:invitar", (hiloId: unknown) => {
-      if (!esUuid(hiloId) || !socket.rooms.has(`${PREFIJO_SALA_LLAMADA}${hiloId}`)) return;
-      socket.to(`hilo:${hiloId}`).emit("llamada:entrante", { hiloId, socketId: socket.id });
     });
 
     socket.on("llamada:rechazar", (hiloId: unknown) => {
@@ -110,13 +221,14 @@ export async function inicializarSenalizacion(server: HttpServer) {
       });
     });
 
-    socket.on("llamada:salir", (hiloId: unknown) => {
+    socket.on("llamada:salir", async (hiloId: unknown) => {
       if (!esUuid(hiloId)) return;
       const sala = `${PREFIJO_SALA_LLAMADA}${hiloId}`;
       if (!socket.rooms.has(sala)) return;
       socket.to(sala).emit("llamada:participante-salio", { socketId: socket.id });
       socket.to(`hilo:${hiloId}`).emit("llamada:cancelada", { hiloId, socketId: socket.id });
-      socket.leave(sala);
+      await socket.leave(sala);
+      if ((await io.in(sala).fetchSockets()).length === 0) llamadasActivas.delete(hiloId);
     });
 
     socket.on("disconnecting", () => {
@@ -125,6 +237,12 @@ export async function inicializarSenalizacion(server: HttpServer) {
         const hiloId = sala.slice(PREFIJO_SALA_LLAMADA.length);
         socket.to(sala).emit("llamada:participante-salio", { socketId: socket.id });
         socket.to(`hilo:${hiloId}`).emit("llamada:cancelada", { hiloId, socketId: socket.id });
+      }
+    });
+
+    socket.on("disconnect", async () => {
+      for (const hiloId of llamadasActivas.keys()) {
+        if ((await io.in(`${PREFIJO_SALA_LLAMADA}${hiloId}`).fetchSockets()).length === 0) llamadasActivas.delete(hiloId);
       }
     });
   });

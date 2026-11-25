@@ -1,5 +1,5 @@
 
-import { Usuario, Mensaje as TipoMensaje } from "@/types";
+import { Usuario, Mensaje as TipoMensaje, ArchivoAdjunto } from "@/types";
 import { useState, useEffect, useRef } from "react";
 import { rutaMensajes } from "../chat.api";
 import { enviarMensaje as enviarMensajeApi, escucharMensajes } from "../chat.api";
@@ -7,6 +7,7 @@ import { enviarMensaje as enviarMensajeApi, escucharMensajes } from "../chat.api
 import Mensaje from "./Mensaje";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
+import DrivePicker from "./DrivePicker";
 
 interface Props {
   empresaId: string;
@@ -27,6 +28,7 @@ export default function ChatArea({
   const [errorCarga, setErrorCarga] = useState(false);
   const [texto, setTexto] = useState("");
   const [archivo, setArchivo] = useState<File | null>(null);
+  const [archivosDrive, setArchivosDrive] = useState<ArchivoAdjunto[]>([]);
   const [mensajeCitado, setMensajeCitado] = useState<TipoMensaje | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -53,13 +55,14 @@ export default function ChatArea({
 
   // Enviar mensaje
   const enviarMensaje = async () => {
-    if (enviando || (!texto.trim() && !archivo)) return;
+    if (enviando || (!texto.trim() && !archivo && archivosDrive.length === 0)) return;
 
     setEnviando(true);
     try {
-      await enviarMensajeApi(ruta, datosUsuario, texto, archivo, mensajeCitado);
+      await enviarMensajeApi(ruta, datosUsuario, texto, archivo, mensajeCitado, archivosDrive);
       setTexto("");
       setArchivo(null);
+      setArchivosDrive([]);
       setMensajeCitado(null);
     } catch (error) {
       // No limpiamos el texto para que el usuario pueda reintentar
@@ -110,6 +113,12 @@ export default function ChatArea({
         </div>
       )}
 
+      {archivosDrive.length > 0 && (
+        <div className="flex flex-wrap gap-2 border-t border-white/5 bg-[#2b2d31] px-4 py-2">
+          {archivosDrive.map((item) => <span key={item.url} className="rounded-full bg-sky-950/60 px-3 py-1 text-xs text-sky-200">☁️ {item.nombre} <button type="button" onClick={() => setArchivosDrive((actuales) => actuales.filter((archivoDrive) => archivoDrive.url !== item.url))} aria-label={`Quitar ${item.nombre}`}>✕</button></span>)}
+        </div>
+      )}
+
       {mensajeCitado && (
         <div className="px-4 py-2 bg-[#2b2d31] border-t border-white/5 flex items-center justify-between text-xs text-indigo-400">
           <span>Replying to <strong>{mensajeCitado.autorNombre}</strong></span>
@@ -130,6 +139,7 @@ export default function ChatArea({
               onChange={(e) => setArchivo(e.target.files?.[0] || null)}
             />
           </label>
+          <DrivePicker alSeleccionar={(nuevoArchivo) => setArchivosDrive((actuales) => actuales.some((item) => item.url === nuevoArchivo.url) ? actuales : [...actuales, nuevoArchivo])} />
 
           {/* Campo de texto estilizado */}
           <Input

@@ -20,13 +20,17 @@ export default defineConfig({
     }),
   ],
   resolve: {
-    alias: { "@": path.resolve(__dirname, "src") },
+    alias: {
+      "@": path.resolve(__dirname, "src"),
+      "@sgd/google-drive-local": path.resolve(__dirname, "../../local-module/index.js"),
+    },
   },
   server: {
     port: 5175,
     strictPort: true,
     origin: "http://localhost:5175",
     cors: true,
+    fs: { allow: [path.resolve(__dirname, "../../local-module")] },
   },
   build: {
     target: "esnext",

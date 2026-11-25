@@ -11,7 +11,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         abre un hilo para ver sus controles de videollamada.
       </p>
       <div className="mx-auto max-w-3xl rounded-2xl border border-white/10 bg-[#1f2937] p-6">
-        <VideoLlamada hiloId="00000000-0000-4000-8000-000000000001" />
+        <VideoLlamada
+          hiloId="00000000-0000-4000-8000-000000000001"
+          usuarioUid="usuario-demo"
+          usuarioNombre="Usuario de prueba"
+        />
       </div>
     </div>
   </React.StrictMode>

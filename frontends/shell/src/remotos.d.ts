@@ -49,6 +49,11 @@ declare module "mf_chat/ChatArea" {
 
 declare module "mf_videollamada/VideoLlamada" {
   import type { ComponentType } from "react";
-  const C: ComponentType<{ hiloId: string }>;
+  const C: ComponentType<{
+    hiloId: string;
+    usuarioUid: string;
+    usuarioNombre: string;
+    usuarioCargo?: string;
+  }>;
   export default C;
 }

@@ -73,7 +73,12 @@ export default function Dashboard() {
                   <p className="text-xs text-slate-400">Chat y videollamada en el mismo canal</p>
                 </div>
                 <Suspense fallback={<span className="text-xs text-slate-400">Cargando llamada…</span>}>
-                  <VideoLlamada hiloId={hiloId} />
+                  <VideoLlamada
+                    hiloId={hiloId}
+                    usuarioUid={datosUsuario.uid}
+                    usuarioNombre={datosUsuario.nombre}
+                    usuarioCargo={datosUsuario.cargo}
+                  />
                 </Suspense>
               </div>
               <Suspense fallback={<p className="p-4 text-slate-400">Cargando chat...</p>}>
