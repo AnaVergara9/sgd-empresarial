@@ -1,3 +1,8 @@
+{
+	email sgd.empresarial1@gmail.com
+	cert_issuer acme https://acme.zerossl.com/v2/DV90
+}
+
 # ============================================================
 # Caddy: puerta de entrada pública del proyecto en la nube.
 # Recibe todo lo que llega por internet (puertos 80 y 443),
