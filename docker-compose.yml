@@ -80,11 +80,13 @@ services:
 
   mf-chat:
     build:
-      context: ./frontends/mf-chat
+      context: .
+      dockerfile: frontends/mf-chat/Dockerfile
       args:
         VITE_API_URL: http://localhost:4000
         VITE_SOCKET_URL: ${VITE_SOCKET_URL:-http://localhost:4004}
         VITE_CLOUDINARY_CLOUD_NAME: ${VITE_CLOUDINARY_CLOUD_NAME}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     ports:
       - "5175:80"
 

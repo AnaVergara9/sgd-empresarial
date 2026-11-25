@@ -222,11 +222,13 @@ export async function enviarMensaje(
   autor: Usuario,
   texto: string,
   archivo: File | null,
-  mensajeCitado: Mensaje | null
+  mensajeCitado: Mensaje | null,
+  archivosDrive: ArchivoAdjunto[] = []
 ) {
   const archivoSubido = archivo
     ? await subirArchivo(archivo)
     : null;
+  const archivos = [...(archivoSubido ? [archivoSubido] : []), ...archivosDrive];
 
   const mensaje = await pedir(
     `/hilos/${encodeURIComponent(hiloIdDeRuta(ruta))}/mensajes`,
@@ -238,7 +240,7 @@ export async function enviarMensaje(
         autorNombre: autor.nombre,
         autorAvatar: autor.avatar || "",
         autorAvatarColor: autor.avatarColor || "#5865f2",
-        archivos: archivoSubido ? [archivoSubido] : [],
+        archivos,
         respondidoA: mensajeCitado
           ? {
               autorNombre: mensajeCitado.autorNombre,
