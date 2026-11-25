@@ -1,0 +1,21 @@
+# ============================================================
+# Configuración para el hosting (servidores Apache con cPanel).
+# Al estar en la carpeta public/, Vite lo copia solo a dist/
+# cuando se ejecuta npm run build.
+# ============================================================
+
+<IfModule mod_headers.c>
+    # Permite que el shell, que está en otro dominio, cargue
+    # los archivos de este microfrontend (remoteEntry.js y demás)
+    Header always set Access-Control-Allow-Origin "*"
+
+    # remoteEntry.js siempre se pide de nuevo, para que el shell
+    # no use una versión vieja guardada en el navegador
+    <Files "remoteEntry.js">
+        Header always set Cache-Control "no-cache"
+    </Files>
+</IfModule>
+
+# Asegura que los .js se entreguen como JavaScript, necesario
+# para que el navegador acepte cargarlos como módulos
+AddType application/javascript .js
