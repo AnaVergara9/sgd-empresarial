@@ -1,0 +1,40 @@
+# ============================================================
+# Caddy: puerta de entrada pública del proyecto en la nube.
+# Recibe todo lo que llega por internet (puertos 80 y 443),
+# saca solo los certificados HTTPS gratuitos (Let's Encrypt)
+# y manda cada subdominio al contenedor que le corresponde.
+# {$DOMINIO} se reemplaza por la variable DOMINIO del archivo .env
+# ============================================================
+
+# Shell: la aplicación principal que abre el usuario
+app.{$DOMINIO} {
+	reverse_proxy shell:80
+}
+
+# Gateway: la puerta única de los microservicios (API REST)
+api.{$DOMINIO} {
+	reverse_proxy gateway:4000
+}
+
+# Socket del chat: pasa por el balanceador Nginx, que reparte
+# entre chat-service-1 y chat-service-2
+socket.{$DOMINIO} {
+	reverse_proxy chat-nginx:80
+}
+
+# Señalización de las videollamadas (Socket.IO del videollamada-service)
+rtc.{$DOMINIO} {
+	reverse_proxy videollamada-service:4006
+}
+
+# Microfrontend del chat (el shell lo carga desde aquí)
+chat.{$DOMINIO} {
+	reverse_proxy mf-chat:80
+}
+
+# Microfrontend de videollamada (el shell lo carga desde aquí)
+videomf.{$DOMINIO} {
+	reverse_proxy mf-videollamada:80
+}
+
+# mf-navegacion NO está aquí, porque se publica aparte en el hosting
