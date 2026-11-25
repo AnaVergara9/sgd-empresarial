@@ -1,0 +1,77 @@
+# ============================================================
+# Ajustes para el despliegue en la nube.
+# NO reemplaza a docker-compose.yml: se usa encima de él, así
+# el proyecto sigue funcionando igual en local.
+#
+# Comando para levantarlo en el servidor:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Docker junta los dos archivos: lo que se escribe aquí reemplaza
+# solo esos valores del archivo original y deja el resto igual.
+# Las variables ${...} se leen del archivo .env del servidor.
+# ============================================================
+
+services:
+  # ---------- Nuevo: Caddy (HTTPS y subdominios) ----------
+  caddy:
+    image: caddy:2                    # imagen oficial de Caddy
+    restart: unless-stopped           # si el servidor se reinicia, vuelve a encender solo
+    ports:
+      - "80:80"                       # HTTP, Caddy lo usa para pedir el certificado
+      - "443:443"                     # HTTPS, por donde entran los usuarios
+    environment:
+      DOMINIO: ${DOMINIO}             # le pasa el dominio al Caddyfile
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro   # nuestra configuración (solo lectura)
+      - caddy_data:/data              # guarda los certificados para no pedirlos cada vez
+      - caddy_config:/config
+    depends_on:                       # espera a que existan los contenedores a los que redirige
+      - shell
+      - gateway
+      - chat-nginx
+      - videollamada-service
+      - mf-chat
+      - mf-videollamada
+
+  # ---------- Microfrontends con direcciones públicas ----------
+  # Las variables VITE_ quedan guardadas dentro de los archivos al
+  # construir, por eso se cambian aquí en lugar de "localhost".
+
+  mf-navegacion:
+    build:
+      args:
+        VITE_API_URL: https://api.${DOMINIO}
+
+  mf-chat:
+    build:
+      args:
+        VITE_API_URL: https://api.${DOMINIO}          # API REST por el gateway
+        VITE_SOCKET_URL: https://socket.${DOMINIO}    # socket por el balanceador
+
+  mf-videollamada:
+    build:
+      args:
+        VITE_VIDEOLLAMADA_URL: https://rtc.${DOMINIO} # señalización de la llamada
+
+  shell:
+    build:
+      args:
+        VITE_API_URL: https://api.${DOMINIO}
+        VITE_MF_NAVEGACION_URL: ${URL_HOSTING_NAVEGACION}  # dirección del hosting
+        VITE_MF_CHAT_URL: https://chat.${DOMINIO}
+        VITE_MF_VIDEOLLAMADA_URL: https://videomf.${DOMINIO}
+
+  # ---------- Servicios que deben conocer las direcciones públicas ----------
+  videollamada-service:
+    environment:
+      # Solo acepta conexiones desde nuestras páginas
+      SOCKET_CORS_ORIGIN: https://app.${DOMINIO},https://videomf.${DOMINIO}
+
+  archivos-service:
+    environment:
+      # Dirección con la que se arman los links de los archivos subidos
+      URL_PUBLICA: https://api.${DOMINIO}
+
+volumes:
+  caddy_data:
+  caddy_config:
