@@ -1,39 +1,48 @@
 # SGD Empresarial
 
-Sistema de colaboración para equipos de una empresa. La interfaz permite autenticarse, navegar por canales, subcanales e hilos, intercambiar mensajes y archivos, compartir enlaces de Google Drive y realizar videollamadas grupales.
+Plataforma de colaboración pensada para los equipos de trabajo de una empresa. Desde la interfaz puedes iniciar sesión, moverte entre canales, subcanales e hilos, enviar mensajes y archivos, compartir enlaces de Google Drive y hacer videollamadas grupales.
 
-## Cómo arrancar en local
+## Ejecución en local
 
-1. Instala Docker Desktop y asegúrate de que esté iniciado.
-2. Copia `.env.example` como `.env` y completa las variables necesarias. Para Google Drive configura `VITE_GOOGLE_CLIENT_ID` con el cliente OAuth de tipo Web de Google Cloud.
-3. En Google Auth Platform agrega `http://localhost:5173` como origen autorizado. Si la app está en modo de prueba, agrega las cuentas de Google que probarán Drive en **Público → Usuarios de prueba**.
-4. Desde PowerShell, en la raíz del repositorio, ejecuta:
+1. Instala **Docker Desktop** y verifica que esté corriendo.
+2. Crea un archivo `.env` a partir de `.env.example` y llena las variables requeridas. Para la integración con Google Drive, asigna a `VITE_GOOGLE_CLIENT_ID` el cliente OAuth de tipo **Aplicación web** creado en Google Cloud.
+3. En **Google Auth Platform**, registra `http://localhost:5173` como origen autorizado. Si la aplicación sigue en modo de prueba, añade las cuentas de Google que van a usar Drive en **Público → Usuarios de prueba**.
+4. Abre PowerShell en la raíz del repositorio y ejecuta:
 
-   ```powershell
+   ```bash
    docker compose up --build
    ```
 
-5. Abre `http://localhost:5173`. Para detener los servicios, usa `Ctrl+C` y luego `docker compose down` en otra terminal, si Docker Compose quedó en segundo plano.
+5. Entra a `http://localhost:5173`. Para apagar los servicios presiona `Ctrl+C`; si Docker Compose quedó corriendo en segundo plano, ejecuta `docker compose down` desde otra terminal.
 
-El MFE de chat importa el paquete local `local-module` durante su compilación. Por eso, el servicio `mf-chat` en Docker Compose usa la raíz del repositorio como contexto de build.
+> **Nota:** el microfrontend de chat depende del paquete local `local-module` al compilarse. Por esa razón, en Docker Compose el servicio `mf-chat` toma la raíz del repositorio como contexto de build.
 
 ## Funcionalidades
 
-- Empresas, canales, subcanales e hilos.
-- Chat con historial persistido en MongoDB, reacciones, respuestas y adjuntos.
-- Mensajes en vivo por Socket.IO.
-- Selector local de Google Drive con permiso de solo lectura; los mensajes guardan enlaces y metadatos, no copian archivos.
-- Videollamadas de hasta ocho participantes con invitaciones, audio, video y estados de cámara/micrófono.
-- Balanceo de chat con Nginx entre dos instancias del servicio.
+- Gestión de empresas, canales, subcanales e hilos.
+- Chat con historial guardado en MongoDB, además de reacciones, respuestas y archivos adjuntos.
+- Mensajería en tiempo real mediante Socket.IO.
+- Selector de Google Drive con permiso de solo lectura: los mensajes almacenan el enlace y sus metadatos, sin copiar los archivos.
+- Videollamadas de hasta ocho personas, con invitaciones, audio, video e indicadores de cámara y micrófono.
+- Balanceo de carga del chat con Nginx entre dos instancias del servicio.
 
 ## Arquitectura
 
-La aplicación usa React y Vite con un shell que compone microfrontends independientes. Un gateway enruta las solicitudes a microservicios separados. Hay tres bases PostgreSQL para autenticación, empresas y canales, MongoDB para mensajes y Redis para sincronizar eventos entre instancias Socket.IO.
+El frontend está construido con **React** y **Vite**, usando un shell que integra varios microfrontends independientes. Un **gateway** dirige las peticiones hacia los microservicios correspondientes. La persistencia se reparte así:
 
-Consulta [docs/arquitectura.md](docs/arquitectura.md) para diagramas, puertos, servicios, flujos, configuración y límites. Consulta [docs/guia-demostracion.md](docs/guia-demostracion.md) para mostrar cada requisito del proyecto durante la exposición.
+- **PostgreSQL** (tres bases): autenticación, empresas y canales.
+- **MongoDB**: mensajes.
+- **Redis**: sincronización de eventos entre las instancias de Socket.IO.
 
-## Estado de despliegue
+Para más detalle sobre diagramas, puertos, servicios, flujos, configuración y limitaciones, revisa [docs/arquitectura.md](https://github.com/AnaVergara9/sgd-empresarial/blob/main/docs/arquitectura.md).
+Si necesitas presentar el proyecto, en [docs/guia-demostracion.md](https://github.com/AnaVergara9/sgd-empresarial/blob/main/docs/guia-demostracion.md) está la guía para mostrar cada requisito durante la exposición.
 
-El repositorio contiene configuración de desarrollo local. El backend aún no está desplegado públicamente. `deploy/aws` contiene una plantilla sin ejecutar para alojar un remoto en S3/CloudFront; no representa un despliegue activo. La carpeta `local-module` contiene el código fuente del paquete local de Google Drive y no se publica como servicio independiente.
+## Estado del despliegue
 
-No subas `.env`, secretos OAuth, contraseñas ni credenciales de base de datos a GitHub.
+- Por ahora el repositorio solo incluye la configuración para desarrollo local; el backend **no** está desplegado públicamente.
+- La carpeta `deploy/aws` trae una plantilla, aún sin ejecutar, para alojar un remoto en S3/CloudFront. No corresponde a un despliegue activo.
+- La carpeta `local-module` contiene el código del paquete local de Google Drive y no se publica como un servicio aparte.
+
+## Seguridad
+
+⚠️ Nunca subas a GitHub el archivo `.env`, secretos de OAuth, contraseñas ni credenciales de bases de datos.
